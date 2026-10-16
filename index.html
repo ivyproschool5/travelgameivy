@@ -163,6 +163,15 @@ td.n,th.n{text-align:right}
 .opt.dim{opacity:.45}
 .result{font-family:var(--display);font-weight:800;font-size:1.3rem;margin:0}
 .result.good{color:var(--good)} .result.bad{color:var(--bad)}
+.lcdwrap{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start;background:#2b2f33;color:#d9e2c9;border-radius:16px;padding:12px}
+#lcd{width:min(50vw,220px);aspect-ratio:11/20;max-width:100%;background:#9eac87;border-radius:4px;touch-action:none;display:block;box-shadow:inset 0 0 0 2px rgba(0,0,0,.25)}
+.hud{display:grid;gap:10px;min-width:0}
+.hud .lvl{color:#aab59a;display:block;font-size:.7rem}
+.hud b{font-family:var(--display);font-size:1.5rem;line-height:1.1;font-variant-numeric:tabular-nums;color:#eef3e4;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pad{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;touch-action:none;user-select:none;-webkit-user-select:none}
+.padb{min-height:78px;border-radius:16px;border:0;background:var(--pine);color:var(--pine-ink);font-size:2rem;font-weight:800;touch-action:none}
+.padb.turbo{background:var(--cap);color:var(--cap-ink)}
+.padb:active,.padb.down{transform:scale(.96);filter:brightness(1.1)}
 .cardtop{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .say{border:1.5px solid currentColor;background:transparent;color:inherit;border-radius:999px;padding:4px 12px;font-size:.82rem;font-weight:700;min-height:34px;flex:none;opacity:.85}
 .dock .inner{align-items:flex-end}
@@ -399,6 +408,104 @@ const RBX_GAMES = [
   ["Theme Park Tycoon 2",["Guests pay to get in.","You build roller coasters and rides.","You run your own theme park."]]
 ];
 
+/* Brick Racer: classic handheld brick-game car race on an 11 x 20 LCD grid */
+const RC = {COLS:11, ROWS:20, PY:16};
+const CAR = [[0,1,0],[1,1,1],[0,1,0],[1,0,1]];
+let R = null;
+const raceSpeed = lv => lv === "easy" ? {start:210, min:100, step:7} : lv === "hard" ? {start:160, min:60, step:6} : {start:150, min:55, step:6};
+function newRace(pid){ const p = P(pid), sp = raceSpeed(p.level);
+  R = {pid, lane:1, enemies:[], passed:0, tick:sp.start, sp, acc:0, last:0, off:0, turbo:false, over:false, done:false, gap:2, crashT:0, wait:900, running:true}; }
+const raceLevel = () => R ? 1 + Math.floor(R.passed / 10) : 1;
+function carCells(lane, y){ const out = [], x = 1 + lane * 3;
+  CAR.forEach((row, r) => row.forEach((v, c) => { if(v) out.push([y + r, x + c]); })); return out; }
+function collide(){ const me = new Set(carCells(R.lane, RC.PY).map(([r,c]) => r + "," + c));
+  return R.enemies.some(e => carCells(e.lane, e.y).some(([r,c]) => me.has(r + "," + c))); }
+function tone(f, d, vol, type){ if(!S.settings.sound) return;
+  try{ actx = actx || new (window.AudioContext || window.webkitAudioContext)(); const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type || "square"; o.frequency.value = f; o.connect(g); g.connect(actx.destination);
+    g.gain.setValueAtTime(vol || .06, actx.currentTime); g.gain.exponentialRampToValueAtTime(.0001, actx.currentTime + d);
+    o.start(); o.stop(actx.currentTime + d + .02); }catch(e){} }
+function raceStep(){
+  R.off = (R.off + 1) % 4;
+  R.enemies.forEach(e => e.y++);
+  const before = R.enemies.length; R.enemies = R.enemies.filter(e => e.y < RC.ROWS);
+  const gone = before - R.enemies.length;
+  if(gone){ R.passed += gone; tone(880, .05, .04);
+    R.tick = Math.max(R.sp.min, R.sp.start - Math.floor(R.passed / 4) * R.sp.step); }
+  if(--R.gap <= 0){
+    const lanes = shuffle([0,1,2]);
+    R.enemies.push({lane:lanes[0], y:-4});
+    if(R.passed >= 15 && Math.random() < Math.min(.45, .15 + R.passed / 200)) R.enemies.push({lane:lanes[1], y:-4});
+    R.gap = 7 + Math.floor(Math.random() * 4);
+  }
+  if(collide()) raceCrash();
+}
+function raceMove(d){ if(!R || !R.running || R.over || R.wait > 0) return;
+  const n = Math.max(0, Math.min(2, R.lane + d)); if(n === R.lane) return;
+  R.lane = n; tone(440, .03, .03); if(collide()) raceCrash(); }
+function raceCrash(){ R.over = true; R.crashT = 0; tone(120, .5, .12, "sawtooth"); setTimeout(() => tone(80, .5, .1, "sawtooth"), 120); }
+function raceFinish(){
+  R.running = false; const g = S.g.race, p = P(R.pid), n = R.passed;
+  const best = g.best[p.id] || 0, isBest = n > best; if(isBest) g.best[p.id] = n;
+  const pts = Math.min(25, Math.floor(n / 2));
+  g.last = {pid:p.id, n, pts, isBest};
+  say("Crash! " + p.name + " passed " + n + (n === 1 ? " car." : " cars.") + (isBest && n > 0 ? " New best!" : ""));
+  if(pts > 0) award(p.id, pts, "Brick Racer");
+  save(); render();
+}
+function raceGrid(){
+  const g = Array.from({length:RC.ROWS}, () => Array(RC.COLS).fill(0));
+  const off = R ? R.off : 0;
+  for(let r = 0; r < RC.ROWS; r++) if(((r - off) % 4 + 4) % 4 !== 3){ g[r][0] = 1; g[r][RC.COLS - 1] = 1; }
+  const put = cells => cells.forEach(([r,c]) => { if(r >= 0 && r < RC.ROWS && c >= 0 && c < RC.COLS) g[r][c] = 1; });
+  if(R) R.enemies.forEach(e => put(carCells(e.lane, e.y)));
+  const lane = R ? R.lane : 1;
+  if(R && R.over && Math.floor(R.crashT / 160) % 2){
+    const x = 1 + lane * 3; for(let r = RC.PY - 1; r < RC.ROWS; r++) for(let c = x - 1; c <= x + 3; c++) if((r + c) % 2 === 0) put([[r, c]]);
+  } else put(carCells(lane, RC.PY));
+  return g;
+}
+function drawLCD(){
+  const c = $("#lcd"); if(!c || !c.getContext) return;
+  const dpr = window.devicePixelRatio || 1, cell = Math.max(4, Math.floor((c.clientWidth || 200) * dpr / RC.COLS));
+  if(c.width !== cell * RC.COLS){ c.width = cell * RC.COLS; c.height = cell * RC.ROWS; }
+  const x = c.getContext("2d"), g = raceGrid(), pad = Math.max(1, Math.round(cell * .1)), inner = Math.round(cell * .3);
+  x.fillStyle = "#9eac87"; x.fillRect(0, 0, c.width, c.height);
+  for(let r = 0; r < RC.ROWS; r++) for(let col = 0; col < RC.COLS; col++){
+    const px = col * cell, py = r * cell, on = g[r][col];
+    x.fillStyle = on ? "#1f2a1b" : "rgba(31,42,27,.09)";
+    x.fillRect(px + pad, py + pad, cell - pad * 2, cell - pad * 2);
+    x.fillStyle = on ? "#9eac87" : "rgba(158,172,135,.6)";
+    x.fillRect(px + pad * 2, py + pad * 2, cell - pad * 4, cell - pad * 4);
+    x.fillStyle = on ? "#1f2a1b" : "rgba(31,42,27,.09)";
+    x.fillRect(px + inner, py + inner, cell - inner * 2, cell - inner * 2);
+  }
+  const h1 = $("#hud-cars"), h2 = $("#hud-lvl");
+  if(h1 && R) h1.textContent = R.passed; if(h2) h2.textContent = raceLevel();
+}
+function raceLoop(ts){
+  if(!R || !R.running) return;
+  if(S.screen !== "race" || !$("#lcd")){ R.running = false; return; }
+  const dt = R.last ? Math.min(100, ts - R.last) : 0; R.last = ts;
+  if(R.wait > 0) R.wait -= dt;
+  else if(!R.over){ R.acc += dt; const t = R.turbo ? R.tick * .5 : R.tick;
+    while(R.acc >= t){ R.acc -= t; raceStep(); if(R.over) break; } }
+  else { R.crashT += dt; if(R.crashT > 1300 && !R.done){ R.done = true; drawLCD(); raceFinish(); return; } }
+  drawLCD(); requestAnimationFrame(raceLoop);
+}
+function bindRace(){
+  const hold = (id, down, up) => { const b = $("#" + id); if(!b || !b.addEventListener) return;
+    b.addEventListener("pointerdown", e => { e.preventDefault(); b.classList.add("down"); down(); });
+    ["pointerup","pointerleave","pointercancel"].forEach(ev => b.addEventListener(ev, () => { b.classList.remove("down"); up && up(); })); };
+  hold("rl", () => raceMove(-1)); hold("rr", () => raceMove(1));
+  hold("rt", () => { if(R) R.turbo = true; }, () => { if(R) R.turbo = false; });
+  const c = $("#lcd"); if(c && c.addEventListener) c.addEventListener("pointerdown", e => { const b = c.getBoundingClientRect(); raceMove(e.clientX - b.left < b.width / 2 ? -1 : 1); });
+}
+document.addEventListener("keydown", e => { if(S.screen !== "race" || !R || !R.running) return;
+  if(e.key === "ArrowLeft"){ raceMove(-1); e.preventDefault(); } else if(e.key === "ArrowRight"){ raceMove(1); e.preventDefault(); }
+  else if(e.key === "ArrowUp"){ R.turbo = true; e.preventDefault(); } });
+document.addEventListener("keyup", e => { if(e.key === "ArrowUp" && R) R.turbo = false; });
+
 /* ---------- State ---------- */
 const KEY = "himachal-rally-v1";
 function fresh(){
@@ -413,6 +520,7 @@ function fresh(){
     g:{spot:{pid:"kippi",cards:{},race:null}, quiz:{turn:0,q:null,opts:null,picked:null}, ant:{turn:0,letter:"M",running:false,up:false},
        atlas:{cat:null,alive:[],turn:0,running:false,up:false,winner:null}, tq:{thinker:null,count:0,idea:null,done:null},
        rbx:{mode:null,turn:0,q:null,opts:null,picked:null,card:null,clue:1,done:null},
+       race:{pid:"zubbu",best:{},last:null},
        resetAsk:false}
   };
 }
@@ -563,7 +671,7 @@ function optionFrom(t, opts){
 const CAT_WORDS = [["places","place","cities","city","countries","country"],["animals","animal"],["food","foods","dishes"],["names","name","people"]];
 const NAV = [["spot",["spot it","spotting","spot game"]],["quiz",["quiz","quick quiz"]],["ant",["antakshari","antakshri","antakshiri","antaakshari","song game","singing game"]],
   ["atlas",["atlas","word chain","chain game"]],["tq",["20 questions","twenty questions","20 question"]],["home",["home","menu","main menu","all games"]],
-  ["rbx",["roblox","roblox round"]],["scores",["scoreboard"]],["settings",["settings"]]];
+  ["rbx",["roblox","roblox round"]],["race",["racing","race game","car game","brick racer","racer","car race"]],["scores",["scoreboard"]],["settings",["settings"]]];
 
 /* Turns one spoken sentence into a game action. Returns true if it did something. */
 function hear(raw){
@@ -634,6 +742,10 @@ function hear(raw){
       if(has(t,"clue","next","another","more")) return run("rbx-clue");
       if(has(t,"reveal","answer","give up","show","nobody")) return run("rbx-reveal");
       break; }
+    case "race":
+      if(has(t,"start","go","again","ready","race")) return run("race-start");
+      if(pid) return run("race-driver", {id:pid});
+      break;
     case "scores":
       if(has(t,"end day","end the day","end today","finish","champion")) return run("go", {s:"dayend"});
       break;
@@ -670,6 +782,7 @@ const screens = {
         <button class="game" data-a="go" data-s="atlas"><span class="sign">A</span><span><b>Atlas Chain</b><small>Next word starts with the last letter. Last one standing wins.</small></span></button>
         <button class="game" data-a="go" data-s="tq"><span class="sign diamond"><span>20</span></span><span><b>20 Questions</b><small>One person thinks of something. Others ask yes or no questions.</small></span></button>
         <button class="game" data-a="go" data-s="rbx"><span class="sign">R</span><span><b>Roblox Round</b><small>Roblox quiz with choices, or guess the Roblox game from clues.</small></span></button>
+        <button class="game" data-a="go" data-s="race"><span class="sign diamond"><span>F1</span></span><span><b>Brick Racer</b><small>The old handheld car game. Dodge the traffic, pass the phone, beat each other's best.</small></span></button>
       </div>
       <div class="quick">
         <button class="btn" data-a="go" data-s="settings">Players &amp; settings</button>
@@ -804,6 +917,25 @@ const screens = {
           <div class="row">${g.clue < 3 ? `<button class="btn" data-a="rbx-clue">Next clue</button>` : ""}<button class="btn bad" data-a="rbx-reveal">Show the answer</button></div>`}`;
   },
 
+  race(){
+    const g = S.g.race, p = P(g.pid) || S.players[0]; g.pid = p.id;
+    const live = R && R.running, last = g.last && !live ? g.last : null;
+    return `${back("Brick Racer")}
+      <p class="sub">Pass the phone to the driver. Tap ◀ ▶ to change lanes, hold ▲ for turbo. 1 point for every 2 cars passed, up to 25. Keep races short if anyone feels car-sick.</p>
+      ${live ? "" : pbtns("race-driver", {on:p.id})}
+      <div class="lcdwrap" id="lcdwrap"><canvas id="lcd" aria-label="Racing game screen"></canvas>
+        <div class="hud">
+          <div><span class="lvl">Driver</span><b>${esc(p.name)}</b></div>
+          <div><span class="lvl">Cars passed</span><b id="hud-cars">${live ? R.passed : last && last.pid === p.id ? last.n : 0}</b></div>
+          <div><span class="lvl">Speed</span><b id="hud-lvl">1</b></div>
+          <div><span class="lvl">Best</span><b>${g.best[p.id] || 0}</b></div>
+        </div></div>
+      ${live ? `<div class="pad"><button id="rl" class="padb" aria-label="Move left">◀</button><button id="rt" class="padb turbo" aria-label="Hold for turbo">▲</button><button id="rr" class="padb" aria-label="Move right">▶</button></div>
+          <button class="btn small" data-a="race-stop">Stop race</button>`
+        : `${last ? `<p class="result ${last.pts ? "good" : "bad"}">${esc(P(last.pid)?.name || "")} passed ${last.n} ${last.n === 1 ? "car" : "cars"}${last.pts ? ". +" + last.pts + " points" : ""}${last.isBest && last.n ? ". New best!" : ""}</p>` : ""}
+          <button class="btn go" data-a="race-start">Start race: ${esc(p.name)} drives</button>`}`;
+  },
+
   scores(){
     const rows = [...S.players].sort((a,b) => trip(b.id) - trip(a.id));
     return `<h2>Scoreboard</h2>
@@ -862,6 +994,7 @@ const screens = {
           <li><span>"Animals" then "Yes" / "Out"</span><span>Atlas Chain</span></li>
           <li><span>"Dad" / "Question" / "Zubbu guessed it" / "Stumped"</span><span>20 Questions</span></li>
           <li><span>"Roblox", then "Quiz" or "Guess"</span><span>Roblox Round</span></li>
+          <li><span>"Car game", then "Zubbu" / "Start"</span><span>Brick Racer</span></li>
           <li><span>"Next clue" / "Kippi" / "Show the answer"</span><span>Guess the game</span></li>
         </ul>
       </div>
@@ -875,6 +1008,7 @@ const screens = {
 function render(){
   if(!screens[S.screen]) S.screen = "home";
   $("#main").innerHTML = screens[S.screen]();
+  if(S.screen === "race"){ drawLCD(); bindRace(); }
   renderStones();
   paintTimer();
 }
@@ -919,6 +1053,7 @@ function announce(s){
   else if(s === "atlas" && !S.g.atlas.cat) say("Atlas chain. Pick a category.");
   else if(s === "tq" && !S.g.tq.thinker) say("Twenty questions. Who is thinking of something?");
   else if(s === "rbx" && !S.g.rbx.mode) say("Roblox round. Pick Roblox quiz, or guess the Roblox game.");
+  else if(s === "race") say("Brick racer. Pick the driver and tap start.");
   else if(s === "dayend") say(champLine());
 }
 
@@ -994,6 +1129,11 @@ const A = {
   "rbx-guess"(d){ const g = S.g.rbx, c = ensureCard(); if(g.done) return; say("Yes! It's " + c[0] + "."); award(d.id, CLUE_PTS[g.clue-1], "Guess the Roblox game"); g.done = d.id; },
   "rbx-card"(){ S.g.rbx.card = null; ensureCard(); clueLine(); },
 
+  "race-driver"(d){ S.g.race.pid = d.id; say(P(d.id).name + " is driving."); },
+  "race-start"(){ const p = P(S.g.race.pid) || S.players[0]; newRace(p.id); say("Ready, " + p.name + ". Go!");
+    requestAnimationFrame(raceLoop); setTimeout(() => { const w = $("#lcdwrap"); w && w.scrollIntoView && w.scrollIntoView({block:"center", behavior:"smooth"}); }, 50); },
+  "race-stop"(){ if(R){ R.running = false; R = null; } },
+
   "day-end"(){ S.days.push({n:S.day, scores:{...S.today}}); S.today = {}; S.log = []; S.day++; S.screen = "scores"; toast("Day saved. Good night!"); say("Day saved. Well played everyone. Good night!"); },
   "reset-ask"(){ S.g.resetAsk = true; },
   "reset-no"(){ S.g.resetAsk = false; },
@@ -1025,7 +1165,7 @@ document.addEventListener("change", e => {
 /* ---------- Boot ---------- */
 function start(data){
   if(data && data.players) S = revive(data); else load();
-  S.g.ant.running = false; S.g.atlas.running = false;
+  S.g.ant.running = false; S.g.atlas.running = false; R = null;
   render();
 }
 window.claude?.hot?.snapshot?.(() => S);
