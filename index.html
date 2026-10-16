@@ -419,14 +419,13 @@ let voice = null, lastLine = "";
 function pickVoice(){
   if(!TTS) return; const vs = speechSynthesis.getVoices(); if(!vs.length) return;
   const chosen = S.settings.voiceName && vs.find(v => v.name === S.settings.voiceName);
-  /* Indian English, softest voices first: natural/enhanced voices sound neutral, older ones carry a heavier accent */
-  const IN = vs.filter(v => /^en[-_]IN/i.test(v.lang));
-  const SOFT = [/neerja/i, /prabhat/i, /isha/i, /google/i, /rishi/i, /aarav|ananya|kavya/i, /veena/i, /heera/i, /ravi/i];
-  const soft = SOFT.reduce((f, re) => f || IN.find(v => re.test(v.name) && /natural|enhanced|premium|online/i.test(v.name)) || null, null)
-    || SOFT.reduce((f, re) => f || IN.find(v => re.test(v.name)) || null, null);
-  voice = chosen || soft || IN[0] || vs.find(v => /^en[-_]GB/i.test(v.lang)) || vs.find(v => /^en/i.test(v.lang)) || null;
+  /* Neutral international English: natural/enhanced US voices first, then British, then any English */
+  const pref = (re, langRe) => vs.find(v => langRe.test(v.lang) && re.test(v.name) && /natural|enhanced|premium|online/i.test(v.name)) || vs.find(v => langRe.test(v.lang) && re.test(v.name));
+  const US = /^en[-_]US/i, GB = /^en[-_]GB/i;
+  voice = chosen || pref(/jenny|aria|ava|samantha|google|allison|zira/i, US) || vs.find(v => US.test(v.lang))
+    || pref(/sonia|libby|google|kate|serena|daniel/i, GB) || vs.find(v => GB.test(v.lang)) || vs.find(v => /^en/i.test(v.lang)) || null;
 }
-const englishVoices = () => TTS ? speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang)).sort((a,b) => (/^en[-_]IN/i.test(b.lang)) - (/^en[-_]IN/i.test(a.lang))) : [];
+const englishVoices = () => TTS ? speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang)).sort((a,b) => (/^en[-_]US/i.test(b.lang)) - (/^en[-_]US/i.test(a.lang))) : [];
 if(TTS){ pickVoice(); speechSynthesis.onvoiceschanged = () => { pickVoice(); if(S.screen === "settings") render(); }; }
 function say(text){
   if(!TTS || !S.settings.talk || !text) return;
@@ -727,7 +726,7 @@ const screens = {
         <label class="toggle"><span><b>Catch-up boost</b><br><span class="sub">Last place earns double once the leader is 30 points ahead</span></span><input type="checkbox" id="opt-catchup" ${S.settings.catchup?"checked":""}></label>
         <label class="toggle"><span><b>Game talks out loud</b><br><span class="sub">Reads targets, questions, turns and scores</span></span><input type="checkbox" id="opt-talk" ${S.settings.talk?"checked":""}></label>
         <div class="field"><label for="opt-rate"><b>Talking speed</b></label><select id="opt-rate">${[[0.8,"Slow"],[0.95,"Normal"],[1.1,"Fast"]].map(([v,n]) => `<option value="${v}" ${S.settings.rate==v?"selected":""}>${n}</option>`).join("")}</select></div>
-        <div class="field"><label for="opt-voice"><b>Voice</b></label><select id="opt-voice"><option value="">Automatic (Indian English)</option>${englishVoices().map(v => `<option value="${esc(v.name)}" ${S.settings.voiceName===v.name?"selected":""}>${esc(v.name.replace(/^(Microsoft|Google) /,""))} (${esc(v.lang)})</option>`).join("")}</select></div>
+        <div class="field"><label for="opt-voice"><b>Voice</b></label><select id="opt-voice"><option value="">Automatic (neutral English)</option>${englishVoices().map(v => `<option value="${esc(v.name)}" ${S.settings.voiceName===v.name?"selected":""}>${esc(v.name.replace(/^(Microsoft|Google) /,""))} (${esc(v.lang)})</option>`).join("")}</select></div>
         <label class="toggle"><span><b>Timer beep</b></span><input type="checkbox" id="opt-sound" ${S.settings.sound?"checked":""}></label>
         <label class="toggle"><span><b>Keep screen on</b></span><input type="checkbox" id="opt-awake" ${S.settings.awake?"checked":""}></label>
       </div>
