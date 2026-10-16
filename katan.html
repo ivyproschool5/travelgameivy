@@ -1,0 +1,537 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b5394">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Agrawal Katan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout: iPad landscape. Board on the left fills the height; the current player's panel on the right.
+   Colours: Ivy deep blue and sky blue on white, amber only as a small accent. */
+:root{
+  --bg:#ffffff; --surface:#ffffff; --surface-2:#eaf4fa; --ink:#0d2a40; --muted:#526a7d; --line:#d3e3ee;
+  --pine:#0b5394; --pine-ink:#ffffff; --sky:#1a98cb; --cap:#f7a61b; --cap-ink:#2b1a00; --good:#1d7a4b; --bad:#b0422d;
+  --sea:#5bb8e0; --sea-deep:#2f93c2;
+  --display:"Baloo 2","Trebuchet MS",system-ui,sans-serif;
+  --body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0b1726; --surface:#12233a; --surface-2:#1a3150; --ink:#eaf2f8; --muted:#9fb4c6; --line:#244263;
+  --pine:#3aaee0; --pine-ink:#04121f; --sky:#3aaee0; --good:#52c48b; --bad:#f07c64; --sea:#1d5f86; --sea-deep:#164a69; color-scheme:dark; }}
+:root[data-theme="dark"]{
+  --bg:#0b1726; --surface:#12233a; --surface-2:#1a3150; --ink:#eaf2f8; --muted:#9fb4c6; --line:#244263;
+  --pine:#3aaee0; --pine-ink:#04121f; --sky:#3aaee0; --good:#52c48b; --bad:#f07c64; --sea:#1d5f86; --sea-deep:#164a69; color-scheme:dark; }
+*{box-sizing:border-box}
+html,body{height:100%}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.4;-webkit-tap-highlight-color:transparent}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--cap);outline-offset:2px}
+[hidden]{display:none!important}
+
+header{background:#0b5394;color:#fff;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+header h1{font-family:var(--display);font-weight:800;font-size:1.5rem;margin:0;line-height:1}
+.chips{display:flex;gap:8px;flex-wrap:wrap;flex:1;min-width:0}
+.chip{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.12);border-radius:999px;padding:3px 10px 3px 3px;font-weight:700;border:2px solid transparent;font-size:.95rem}
+.chip.now{background:#fff;color:#0d2a40;border-color:var(--cap)}
+.chip .dot{width:26px;height:26px;border-radius:50%;background:var(--pc);border:2px solid rgba(255,255,255,.8);display:grid;place-items:center;font-size:.8rem;color:#fff;font-family:var(--display)}
+.chip .vp{font-family:var(--display);font-size:1.15rem}
+.chip small{opacity:.75;font-weight:400}
+.hbtn{background:rgba(255,255,255,.14);border:0;color:#fff;border-radius:10px;padding:8px 12px;font-weight:700;text-decoration:none;font-size:.9rem}
+
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:16px;padding-block:14px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  height:calc(100vh - var(--hh,64px) - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));height:calc(100dvh - var(--hh,64px) - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))}
+.boardwrap{min-width:0;min-height:0;height:100%}
+#board{display:block;width:100%;height:100%;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+.panel{display:flex;flex-direction:column;gap:12px;min-width:0;overflow-y:auto;padding-bottom:12px}
+@media (max-width: 900px){ .layout{grid-template-columns:1fr;height:auto} .boardwrap{height:auto} #board{height:auto;aspect-ratio:1;max-height:70vh} }
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.turn{background:var(--pc);color:#fff;border:0}
+.turn h2{font-family:var(--display);font-weight:800;font-size:1.6rem;margin:0;line-height:1.1}
+.turn p{margin:0;font-size:1.05rem}
+h3{font-family:var(--display);font-weight:700;font-size:1.1rem;margin:0}
+.sub{color:var(--muted);margin:0;font-size:.92rem}
+.btn{border:0;border-radius:12px;padding:12px 14px;min-height:52px;font-weight:700;background:var(--surface-2);color:var(--ink)}
+.btn.go{background:var(--pine);color:var(--pine-ink)}
+.btn.amber{background:var(--cap);color:var(--cap-ink)}
+.btn.bad{background:transparent;border:2px solid var(--bad);color:var(--bad)}
+.btn.on{outline:3px solid var(--cap);outline-offset:1px}
+.btn:disabled{opacity:.4;cursor:default}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row .btn{flex:1 1 0}
+
+.res{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.rc{border-radius:10px;padding:6px 2px 4px;text-align:center;color:#10202c;background:var(--rc);border:2px solid transparent;min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.rc b{font-family:var(--display);font-size:1.5rem;line-height:1}
+.rc span{font-size:.72rem;font-weight:700}
+button.rc{cursor:pointer}
+button.rc.sel{border-color:var(--ink);box-shadow:0 0 0 2px var(--cap)}
+button.rc:disabled{opacity:.35}
+
+.builds{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.build{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;padding:10px 12px}
+.build b{font-family:var(--display);font-size:1.05rem}
+.cost{display:flex;gap:3px;flex-wrap:wrap}
+.pip{width:14px;height:14px;border-radius:4px;background:var(--rc);border:1px solid rgba(0,0,0,.25)}
+
+.dice{display:flex;gap:10px;align-items:center}
+.die{width:54px;height:54px;border-radius:12px;background:#fff;color:#111;border:2px solid #0b5394;display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:1.8rem}
+.dice .sum{font-family:var(--display);font-weight:800;font-size:1.4rem}
+.log{list-style:none;margin:0;padding:0;font-size:.9rem;display:flex;flex-direction:column;gap:3px;color:var(--muted)}
+.log li:first-child{color:var(--ink);font-weight:700}
+.counter{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.counter .n{font-family:var(--display);font-weight:800;font-size:1.3rem;min-width:2ch;text-align:center}
+.mini{width:40px;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--surface);font-weight:800;font-size:1.2rem}
+.setup{max-width:640px;margin:24px auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:14px}
+.setup h2{font-family:var(--display);font-weight:800;font-size:2rem;margin:0}
+.pl{display:flex;align-items:center;gap:10px}
+.pl input[type=text]{flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--surface);min-height:48px}
+.pl input[type=checkbox]{width:28px;height:28px;accent-color:#0b5394}
+.pl .dot{width:28px;height:28px;border-radius:50%;background:var(--pc);flex:none}
+
+svg text{font-family:var(--display);pointer-events:none}
+.tgt{cursor:pointer}
+.tgt-v{fill:#fff;stroke:#0b5394;stroke-width:4;animation:pulse 1.1s ease-in-out infinite}
+.tgt-e{stroke:#fff;stroke-width:12;stroke-linecap:round;opacity:.9;animation:pulse 1.1s ease-in-out infinite}
+.tgt-h{fill:rgba(255,255,255,.35);stroke:#fff;stroke-width:5;animation:pulse 1.1s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.45}}
+.toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 76px);transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;font-weight:700;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9;max-width:90vw;text-align:center}
+.toast.show{opacity:1}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Agrawal Katan</h1>
+  <div class="chips" id="chips"></div>
+  <button class="hbtn" id="talkBtn" data-a="talk">Voice on</button>
+  <button class="hbtn" data-a="menu">New game</button>
+  <a class="hbtn" href="./">Road Rally</a>
+</header>
+<div id="app"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* ---------- Rules data ---------- */
+const RES = ["lumber","brick","wool","grain","ore"];
+const RI = {
+  lumber:{label:"Lumber", terrain:"Forest",    c:"#3f9a5c"},
+  brick: {label:"Brick",  terrain:"Hills",     c:"#d67a4c"},
+  wool:  {label:"Wool",   terrain:"Pasture",   c:"#b6dc7b"},
+  grain: {label:"Grain",  terrain:"Fields",    c:"#f2c94c"},
+  ore:   {label:"Ore",    terrain:"Mountains", c:"#a3acbb"}
+};
+const T_RES = {forest:"lumber", hills:"brick", pasture:"wool", fields:"grain", mountains:"ore", desert:null};
+const T_FILL = {forest:"#2e7d4f", hills:"#c46a3e", pasture:"#93c25a", fields:"#e9bd3a", mountains:"#8890a0", desert:"#e6d4a0"};
+const COST = {road:{brick:1,lumber:1}, settlement:{brick:1,lumber:1,wool:1,grain:1}, city:{ore:3,grain:2}};
+const LIMIT = {road:15, settlement:5, city:4};
+const WIN = 10, BANK = 19;
+const PCOL = {mom:"#c03e68", dad:"#1f4fb5", kippi:"#e0701c", zubbu:"#7048c8"};
+const SPARE = ["#c03e68","#1f4fb5","#e0701c","#7048c8"];
+
+/* ---------- Board geometry: 19 pointy-top hexes, 54 corners, 72 edges ---------- */
+const SIZE = 60, SQ3 = Math.sqrt(3);
+const HEX = [];
+for(let r = -2; r <= 2; r++) for(let q = -2; q <= 2; q++) if(Math.abs(q + r) <= 2) HEX.push({q, r, x:SIZE*SQ3*(q + r/2), y:SIZE*1.5*r});
+const V = [], E = [];
+(() => { const vm = new Map(), em = new Map();
+  HEX.forEach((h, hi) => {
+    h.v = []; h.e = [];
+    for(let i = 0; i < 6; i++){
+      const a = Math.PI / 180 * (60*i - 90), x = h.x + SIZE*Math.cos(a), y = h.y + SIZE*Math.sin(a), k = Math.round(x) + "," + Math.round(y);
+      let id = vm.get(k); if(id === undefined){ id = V.length; vm.set(k, id); V.push({x, y, hexes:[], adj:[], edges:[]}); }
+      V[id].hexes.push(hi); h.v.push(id);
+    }
+    for(let i = 0; i < 6; i++){
+      const a = Math.min(h.v[i], h.v[(i+1)%6]), b = Math.max(h.v[i], h.v[(i+1)%6]), k = a + "-" + b;
+      let id = em.get(k); if(id === undefined){ id = E.length; em.set(k, id); E.push({a, b, hexes:[]}); V[a].adj.push(b); V[b].adj.push(a); V[a].edges.push(id); V[b].edges.push(id); }
+      E[id].hexes.push(hi); h.e.push(id);
+    }
+  });
+})();
+const hexAt = (q, r) => HEX.findIndex(h => h.q === q && h.r === r);
+const NB = HEX.map(h => [[1,0],[1,-1],[0,-1],[-1,0],[-1,1],[0,1]].map(([dq,dr]) => hexAt(h.q+dq, h.r+dr)).filter(i => i >= 0));
+const COAST = E.map((e, i) => i).filter(i => E[i].hexes.length === 1)
+  .sort((i, j) => { const m = k => Math.atan2((V[E[k].a].y + V[E[k].b].y)/2, (V[E[k].a].x + V[E[k].b].x)/2); return m(i) - m(j); });
+const PORT_AT = [0,3,6,10,13,16,20,23,26];
+
+/* ---------- Helpers ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const shuffle = a => { for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random()*(i+1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const zero = () => ({lumber:0, brick:0, wool:0, grain:0, ore:0});
+const total = r => RES.reduce((s, k) => s + r[k], 0);
+const roll1 = () => 1 + Math.floor(Math.random()*6);
+
+/* ---------- Game state ---------- */
+const KEY = "agrawal-katan-v1";
+let G = null, UI = {mode:null, give:null, get:null, disc:zero()};
+
+function newBoard(){
+  for(let t = 0; t < 5000; t++){
+    const terr = shuffle(["forest","forest","forest","forest","pasture","pasture","pasture","pasture","fields","fields","fields","fields","hills","hills","hills","mountains","mountains","mountains","desert"]);
+    const nums = shuffle([2,3,3,4,4,5,5,6,6,8,8,9,9,10,10,11,11,12]);
+    let k = 0; const hexes = terr.map(tt => ({t:tt, n: tt === "desert" ? null : nums[k++]}));
+    const red = i => hexes[i].n === 6 || hexes[i].n === 8;
+    if(hexes.some((h, i) => red(i) && NB[i].some(red))) continue;
+    const types = shuffle(["any","any","any","any","lumber","brick","wool","grain","ore"]);
+    return {hexes, robber:hexes.findIndex(h => h.t === "desert"), ports:PORT_AT.map((ci, i) => ({e:COAST[ci], t:types[i]}))};
+  }
+}
+function newGame(players){
+  const b = newBoard();
+  const order = [...players.keys()];
+  G = {v:1, players:players.map(p => ({id:p.id, name:p.name, c:p.c, res:zero()})),
+    hexes:b.hexes, robber:b.robber, ports:b.ports, b:{}, rd:{}, bank:{lumber:BANK,brick:BANK,wool:BANK,grain:BANK,ore:BANK},
+    phase:"setup", setup:{order:[...order, ...order.slice().reverse()], i:0, step:"settlement", lastV:null},
+    turn:0, dice:null, discardQ:[], victims:[], winner:null, log:[], undo:[], rolls:0};
+  UI = {mode:null, give:null, get:null, disc:zero()};
+  log("New game. " + G.players[0].name + " places first.");
+}
+const cur = () => G.phase === "setup" ? G.setup.order[G.setup.i] : G.turn;
+const P = i => G.players[i];
+function log(t){ G.log.unshift(t); G.log.length = Math.min(G.log.length, 40); }
+function snap(){ const c = JSON.parse(JSON.stringify(G)); c.undo = []; G.undo.push(JSON.stringify(c)); if(G.undo.length > 20) G.undo.shift(); }
+
+/* ---------- Rules ---------- */
+const used = (pi, kind) => kind === "road" ? Object.values(G.rd).filter(p => p === pi).length
+  : Object.values(G.b).filter(x => x.p === pi && (kind === "city" ? x.city : !x.city)).length;
+const points = pi => Object.values(G.b).reduce((s, x) => s + (x.p === pi ? (x.city ? 2 : 1) : 0), 0);
+const afford = (pi, cost) => Object.entries(cost).every(([r, n]) => P(pi).res[r] >= n);
+function pay(pi, cost){ Object.entries(cost).forEach(([r, n]) => { P(pi).res[r] -= n; G.bank[r] += n; }); }
+const nearBuilding = v => V[v].adj.some(u => G.b[u] !== undefined);
+function canSettle(pi, v){
+  if(G.b[v] !== undefined || nearBuilding(v)) return false;
+  if(G.phase === "setup") return true;
+  return V[v].edges.some(e => G.rd[e] === pi);
+}
+function canRoad(pi, e){
+  if(G.rd[e] !== undefined) return false;
+  const {a, b} = E[e];
+  if(G.phase === "setup") return a === G.setup.lastV || b === G.setup.lastV;
+  return [a, b].some(v => { const bd = G.b[v];
+    if(bd) return bd.p === pi;
+    return V[v].edges.some(x => x !== e && G.rd[x] === pi); });
+}
+const canCity = (pi, v) => G.b[v] && G.b[v].p === pi && !G.b[v].city;
+function portRate(pi, r){
+  let rate = 4;
+  G.ports.forEach(pt => { const own = [E[pt.e].a, E[pt.e].b].some(v => G.b[v] && G.b[v].p === pi);
+    if(own){ if(pt.t === r) rate = Math.min(rate, 2); else if(pt.t === "any") rate = Math.min(rate, 3); } });
+  return rate;
+}
+function targets(){
+  const pi = cur(), out = {v:[], e:[], h:[]};
+  if(G.phase === "setup"){
+    if(G.setup.step === "settlement") V.forEach((_, v) => canSettle(pi, v) && out.v.push(v));
+    else E.forEach((_, e) => canRoad(pi, e) && out.e.push(e));
+  } else if(G.phase === "robber") HEX.forEach((_, h) => h !== G.robber && out.h.push(h));
+  else if(G.phase === "main"){
+    if(UI.mode === "road") E.forEach((_, e) => canRoad(pi, e) && out.e.push(e));
+    if(UI.mode === "settlement") V.forEach((_, v) => canSettle(pi, v) && out.v.push(v));
+    if(UI.mode === "city") V.forEach((_, v) => canCity(pi, v) && out.v.push(v));
+  }
+  return out;
+}
+function canBuild(kind){
+  const pi = cur(); if(G.phase !== "main" || !afford(pi, COST[kind]) || used(pi, kind) >= LIMIT[kind]) return false;
+  if(kind === "road") return E.some((_, e) => canRoad(pi, e));
+  if(kind === "settlement") return V.some((_, v) => canSettle(pi, v));
+  return V.some((_, v) => canCity(pi, v));
+}
+
+function produce(n){
+  const gain = G.players.map(() => zero());
+  G.hexes.forEach((h, hi) => { if(h.n !== n || hi === G.robber) return; const r = T_RES[h.t];
+    HEX[hi].v.forEach(v => { const bd = G.b[v]; if(bd) gain[bd.p][r] += bd.city ? 2 : 1; }); });
+  RES.forEach(r => {
+    const takers = gain.map((g, i) => [i, g[r]]).filter(x => x[1] > 0), need = takers.reduce((s, x) => s + x[1], 0);
+    if(!need) return;
+    if(need <= G.bank[r]) takers.forEach(([i, k]) => { P(i).res[r] += k; G.bank[r] -= k; });
+    else if(takers.length === 1){ const i = takers[0][0]; gain[i][r] = G.bank[r]; P(i).res[r] += G.bank[r]; G.bank[r] = 0; }
+    else { takers.forEach(([i]) => gain[i][r] = 0); log("The bank ran out of " + RI[r].label.toLowerCase() + ", so nobody got any."); }
+  });
+  return gain;
+}
+function checkWin(){ const pi = cur(); if(points(pi) >= WIN){ G.phase = "over"; G.winner = pi; UI.mode = null;
+  log(P(pi).name + " wins with " + points(pi) + " points!"); say(P(pi).name + " wins! Well played everyone."); } }
+function stealFrom(vi){
+  const pool = []; RES.forEach(r => { for(let i = 0; i < P(vi).res[r]; i++) pool.push(r); });
+  if(!pool.length) return;
+  const r = pool[Math.floor(Math.random()*pool.length)];
+  P(vi).res[r]--; P(cur()).res[r]++;
+  log(P(cur()).name + " stole a card from " + P(vi).name + ".");
+}
+function afterRobber(){
+  const pi = cur();
+  const vs = [...new Set(HEX[G.robber].v.map(v => G.b[v]).filter(Boolean).map(b => b.p))].filter(p => p !== pi && total(P(p).res) > 0);
+  if(vs.length === 0){ G.phase = "main"; }
+  else if(vs.length === 1){ stealFrom(vs[0]); G.phase = "main"; }
+  else { G.victims = vs; G.phase = "steal"; }
+}
+
+/* ---------- Actions (shared by taps and the test bots) ---------- */
+const ACT = {
+  place(kind, id){
+    const pi = cur();
+    if(G.phase === "setup"){
+      snap();
+      if(G.setup.step === "settlement"){ if(!canSettle(pi, id)) return G.undo.pop();
+        G.b[id] = {p:pi}; G.setup.lastV = id; G.setup.step = "road";
+        if(G.setup.i >= G.players.length){ V[id].hexes.forEach(h => { const r = T_RES[G.hexes[h].t]; if(r && G.bank[r] > 0){ P(pi).res[r]++; G.bank[r]--; } }); }
+        log(P(pi).name + " placed a settlement.");
+      } else { if(!canRoad(pi, id)) return G.undo.pop();
+        G.rd[id] = pi; G.setup.i++; G.setup.step = "settlement"; G.setup.lastV = null;
+        if(G.setup.i >= G.setup.order.length){ G.phase = "roll"; G.turn = 0; G.undo = []; log("Setup done. " + P(0).name + " rolls first."); say("Setup done. " + P(0).name + ", roll the dice."); }
+        else say(P(cur()).name + ", place a settlement.");
+      }
+      return;
+    }
+    if(G.phase === "robber"){ if(id === G.robber) return; G.robber = id; log(P(pi).name + " moved the robber."); afterRobber(); return; }
+    if(G.phase !== "main") return;
+    if(kind === "road" && canRoad(pi, id) && afford(pi, COST.road) && used(pi, "road") < LIMIT.road){ snap(); pay(pi, COST.road); G.rd[id] = pi; log(P(pi).name + " built a road."); }
+    else if(kind === "settlement" && canSettle(pi, id) && afford(pi, COST.settlement) && used(pi, "settlement") < LIMIT.settlement){ snap(); pay(pi, COST.settlement); G.b[id] = {p:pi}; log(P(pi).name + " built a settlement."); say(P(pi).name + " built a settlement."); }
+    else if(kind === "city" && canCity(pi, id) && afford(pi, COST.city) && used(pi, "city") < LIMIT.city){ snap(); pay(pi, COST.city); G.b[id].city = true; log(P(pi).name + " built a city."); say(P(pi).name + " built a city!"); }
+    else return;
+    if(!canBuild(kind)) UI.mode = null;
+    checkWin();
+  },
+  roll(){
+    if(G.phase !== "roll") return;
+    const d = [roll1(), roll1()], n = d[0] + d[1]; G.dice = d; G.rolls++; G.undo = [];
+    const pi = cur();
+    if(n === 7){
+      log(P(pi).name + " rolled 7. Robber time!");
+      G.discardQ = G.players.map((p, i) => i).filter(i => total(P(i).res) > 7);
+      if(G.discardQ.length){ G.phase = "discard"; UI.disc = zero(); say("Seven! " + G.discardQ.map(i => P(i).name).join(" and ") + ", discard half your cards."); }
+      else { G.phase = "robber"; say("Seven! " + P(pi).name + ", move the robber."); }
+      return;
+    }
+    const gain = produce(n);
+    const got = gain.map((g, i) => total(g) ? P(i).name + " +" + RES.filter(r => g[r]).map(r => g[r] + " " + RI[r].label.toLowerCase()).join(", ") : "").filter(Boolean);
+    log(P(pi).name + " rolled " + n + ". " + (got.length ? got.join(". ") : "Nobody collected."));
+    say(P(pi).name + " rolled " + n + "." + (got.length ? "" : " Nobody collects."));
+    G.phase = "main";
+  },
+  discard(sel){
+    const pi = G.discardQ[0], need = Math.floor(total(P(pi).res) / 2);
+    if(total(sel) !== need || RES.some(r => sel[r] > P(pi).res[r])) return;
+    RES.forEach(r => { P(pi).res[r] -= sel[r]; G.bank[r] += sel[r]; });
+    log(P(pi).name + " discarded " + need + " cards.");
+    G.discardQ.shift(); UI.disc = zero();
+    if(!G.discardQ.length){ G.phase = "robber"; say(P(cur()).name + ", move the robber."); }
+  },
+  steal(vi){ if(G.phase !== "steal" || !G.victims.includes(vi)) return; stealFrom(vi); G.victims = []; G.phase = "main"; },
+  trade(give, get){
+    const pi = cur(), rate = portRate(pi, give);
+    if(G.phase !== "main" || give === get || P(pi).res[give] < rate || G.bank[get] < 1) return;
+    snap(); P(pi).res[give] -= rate; G.bank[give] += rate; P(pi).res[get]++; G.bank[get]--;
+    log(P(pi).name + " traded " + rate + " " + RI[give].label.toLowerCase() + " for 1 " + RI[get].label.toLowerCase() + ".");
+  },
+  end(){ if(G.phase !== "main") return; G.turn = (G.turn + 1) % G.players.length; G.phase = "roll"; G.dice = null; G.undo = []; UI.mode = null;
+    say(P(G.turn).name + "'s turn. Roll the dice."); },
+  undo(){ const s = G.undo.pop(); if(!s) return; const keep = G.undo; G = JSON.parse(s); G.undo = keep; UI.mode = null; }
+};
+
+/* ---------- Voice ---------- */
+const TTS = "speechSynthesis" in window; let voice = null, talk = true;
+function pickVoice(){ if(!TTS) return; const vs = speechSynthesis.getVoices();
+  voice = vs.find(v => /^en[-_]US/i.test(v.lang) && /natural|enhanced|premium|online/i.test(v.name)) || vs.find(v => /^en[-_]US/i.test(v.lang))
+    || vs.find(v => /^en[-_]GB/i.test(v.lang)) || vs.find(v => /^en/i.test(v.lang)) || null; }
+if(TTS){ pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
+function say(t){ if(!TTS || !talk || typeof SpeechSynthesisUtterance === "undefined") return;
+  try{ const u = new SpeechSynthesisUtterance(t); if(voice){ u.voice = voice; u.lang = voice.lang; } u.rate = .95; speechSynthesis.speak(u); }catch(e){} }
+
+/* ---------- Saving ---------- */
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify({G, talk})); }catch(e){} }
+function load(){ try{ const d = JSON.parse(localStorage.getItem(KEY)); if(d){ talk = d.talk !== false; if(d.G && d.G.v === 1) G = d.G; } }catch(e){} }
+function rallyPlayers(){
+  try{ const d = JSON.parse(localStorage.getItem("himachal-rally-v1")); if(d && d.players) return d.players.map((p, i) => ({id:p.id, name:p.name, c:PCOL[p.id] || SPARE[i % 4]})); }catch(e){}
+  return [{id:"mom",name:"Mom"},{id:"dad",name:"Dad"},{id:"kippi",name:"Kippi"},{id:"zubbu",name:"Zubbu"}].map(p => ({...p, c:PCOL[p.id]}));
+}
+function sendToRally(pi){
+  try{ const d = JSON.parse(localStorage.getItem("himachal-rally-v1")); const id = P(pi).id;
+    if(!d || !d.players || !d.players.some(p => p.id === id)) return false;
+    d.today = d.today || {}; d.today[id] = (d.today[id] || 0) + 25; d.log = d.log || []; d.log.push({id, pts:25, label:"Agrawal Katan win"});
+    localStorage.setItem("himachal-rally-v1", JSON.stringify(d)); return true; }catch(e){ return false; }
+}
+
+/* ---------- Drawing ---------- */
+const PIPS = n => 6 - Math.abs(7 - n);
+function glyph(t, x, y){
+  const s = "stroke:rgba(0,0,0,.35);stroke-width:2";
+  if(t === "forest") return `<path d="M${x-16} ${y+8} l10 -22 l10 22 z M${x} ${y+10} l9 -20 l9 20 z" fill="#1d5e38" style="${s}"/>`;
+  if(t === "hills") return `<g fill="#9c4a26" style="${s}"><rect x="${x-17}" y="${y-8}" width="16" height="8"/><rect x="${x+1}" y="${y-8}" width="16" height="8"/><rect x="${x-8}" y="${y+1}" width="16" height="8"/></g>`;
+  if(t === "pasture") return `<g fill="#f6f6ef" style="${s}"><circle cx="${x-6}" cy="${y}" r="7"/><circle cx="${x+4}" cy="${y-3}" r="8"/><circle cx="${x+10}" cy="${y+4}" r="6"/></g><circle cx="${x-12}" cy="${y-2}" r="3" fill="#333"/>`;
+  if(t === "fields") return `<g stroke="#8a6b10" stroke-width="3" stroke-linecap="round"><path d="M${x-10} ${y+10} v-20 M${x} ${y+10} v-22 M${x+10} ${y+10} v-20"/></g><g fill="#c7961b"><ellipse cx="${x-10}" cy="${y-12}" rx="3" ry="6"/><ellipse cx="${x}" cy="${y-14}" rx="3" ry="6"/><ellipse cx="${x+10}" cy="${y-12}" rx="3" ry="6"/></g>`;
+  if(t === "mountains") return `<path d="M${x-20} ${y+10} l12 -22 l8 12 l6 -9 l14 19 z" fill="#5e6576" style="${s}"/>`;
+  return `<circle cx="${x}" cy="${y}" r="9" fill="#f2b84b" style="${s}"/>`;
+}
+function house(x, y, col, city){
+  const d = city ? `M${x-16} ${y+11} v-14 l8 -8 l8 8 v-1 h15 v15 z` : `M${x-10} ${y+8} v-10 l10 -9 l10 9 v10 z`;
+  return `<path d="${d}" fill="${col}" stroke="#0b1726" stroke-width="2.5" stroke-linejoin="round"/>`;
+}
+function drawBoard(){
+  const tg = targets(), seaR = SIZE * 4.75;
+  const seaPts = [0,1,2,3,4,5].map(i => { const a = Math.PI/3*i; return (seaR*Math.cos(a)).toFixed(1) + "," + (seaR*Math.sin(a)).toFixed(1); }).join(" ");
+  let s = `<polygon points="${seaPts}" fill="var(--sea)" stroke="var(--sea-deep)" stroke-width="10" stroke-linejoin="round"/>`;
+  G.ports.forEach(pt => {
+    const a = V[E[pt.e].a], b = V[E[pt.e].b], mx = (a.x + b.x)/2, my = (a.y + b.y)/2, len = Math.hypot(mx, my), px = mx + mx/len*44, py = my + my/len*44;
+    s += `<line x1="${a.x}" y1="${a.y}" x2="${px}" y2="${py}" stroke="#f5e9cf" stroke-width="5"/><line x1="${b.x}" y1="${b.y}" x2="${px}" y2="${py}" stroke="#f5e9cf" stroke-width="5"/>
+      <circle cx="${px}" cy="${py}" r="23" fill="${pt.t === "any" ? "#fff8e6" : RI[pt.t].c}" stroke="#0b1726" stroke-width="2"/>
+      <text x="${px}" y="${py + (pt.t === "any" ? 6 : 1)}" text-anchor="middle" font-size="${pt.t === "any" ? 17 : 15}" font-weight="800" fill="#10202c">${pt.t === "any" ? "3:1" : "2:1"}</text>
+      ${pt.t === "any" ? "" : `<text x="${px}" y="${py + 14}" text-anchor="middle" font-size="10" font-weight="700" fill="#10202c">${RI[pt.t].label}</text>`}`;
+  });
+  HEX.forEach((h, hi) => {
+    const hx = G.hexes[hi], pts = h.v.map(v => V[v].x.toFixed(1) + "," + V[v].y.toFixed(1)).join(" ");
+    s += `<polygon points="${pts}" fill="${T_FILL[hx.t]}" stroke="#f5e9cf" stroke-width="4"/>`;
+    s += glyph(hx.t, h.x, h.y - 26);
+    if(hx.n){ const red = hx.n === 6 || hx.n === 8;
+      s += `<circle cx="${h.x}" cy="${h.y + 10}" r="21" fill="#fff8e6" stroke="rgba(0,0,0,.3)" stroke-width="1.5"/>
+        <text x="${h.x}" y="${h.y + 15}" text-anchor="middle" font-size="${red ? 22 : 20}" font-weight="800" fill="${red ? "#c0392b" : "#1c2721"}">${hx.n}</text>`;
+      const k = PIPS(hx.n); for(let i = 0; i < k; i++) s += `<circle cx="${h.x + (i - (k-1)/2)*5}" cy="${h.y + 24}" r="1.8" fill="${red ? "#c0392b" : "#1c2721"}"/>`;
+    }
+    if(hi === G.robber) s += `<g><ellipse cx="${h.x + 26}" cy="${h.y + 30}" rx="11" ry="4" fill="rgba(0,0,0,.3)"/><path d="M${h.x+18} ${h.y+30} q8 -36 16 0 z" fill="#2b2f33"/><circle cx="${h.x+26}" cy="${h.y+2}" r="7" fill="#2b2f33"/></g>`;
+  });
+  Object.entries(G.rd).forEach(([e, p]) => { const a = V[E[e].a], b = V[E[e].b], ix = (b.x - a.x)*.14, iy = (b.y - a.y)*.14;
+    s += `<line x1="${a.x+ix}" y1="${a.y+iy}" x2="${b.x-ix}" y2="${b.y-iy}" stroke="#0b1726" stroke-width="13" stroke-linecap="round"/><line x1="${a.x+ix}" y1="${a.y+iy}" x2="${b.x-ix}" y2="${b.y-iy}" stroke="${P(p).c}" stroke-width="8" stroke-linecap="round"/>`; });
+  Object.entries(G.b).forEach(([v, bd]) => { s += house(V[v].x, V[v].y, P(bd.p).c, bd.city); });
+  tg.h.forEach(h => { const pts = HEX[h].v.map(v => V[v].x.toFixed(1) + "," + V[v].y.toFixed(1)).join(" "); s += `<polygon class="tgt tgt-h" data-h="${h}" points="${pts}"/>`; });
+  tg.e.forEach(e => { const a = V[E[e].a], b = V[E[e].b]; s += `<line class="tgt tgt-e" data-e="${e}" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"/><line class="tgt" data-e="${e}" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="transparent" stroke-width="30"/>`; });
+  tg.v.forEach(v => { s += `<circle class="tgt tgt-v" data-v="${v}" cx="${V[v].x}" cy="${V[v].y}" r="11"/><circle class="tgt" data-v="${v}" cx="${V[v].x}" cy="${V[v].y}" r="24" fill="transparent"/>`; });
+  const vb = Math.round(seaR + 46);
+  return `<svg id="board" viewBox="${-vb} ${-vb} ${vb*2} ${vb*2}" role="img" aria-label="Game board">${s}</svg>`;
+}
+
+/* ---------- Panel ---------- */
+const resTiles = (res, opts = {}) => `<div class="res">${RES.map(r => {
+  const inner = `<b>${res[r]}</b><span>${RI[r].label}</span>`;
+  return opts.action ? `<button class="rc ${opts.sel === r ? "sel" : ""}" style="--rc:${RI[r].c}" data-a="${opts.action}" data-r="${r}" ${opts.disabled && opts.disabled(r) ? "disabled" : ""}>${inner}${opts.extra ? opts.extra(r) : ""}</button>`
+    : `<div class="rc" style="--rc:${RI[r].c}">${inner}</div>`; }).join("")}</div>`;
+const costPips = c => `<span class="cost">${Object.entries(c).flatMap(([r, n]) => Array(n).fill(`<i class="pip" style="--rc:${RI[r].c}" title="${RI[r].label}"></i>`)).join("")}</span>`;
+function panel(){
+  const pi = cur(), p = P(pi);
+  let h = `<div class="card turn" style="--pc:${p.c}">`;
+  if(G.phase === "setup"){
+    const round = G.setup.i < G.players.length ? "first" : "second";
+    h += `<h2>${esc(p.name)}</h2><p>${G.setup.step === "settlement" ? `Tap a white circle to place your ${round} settlement.` : "Now tap a white line to place a road next to it."}</p>
+      ${round === "second" && G.setup.step === "settlement" ? `<p style="opacity:.85;font-size:.92rem">You get 1 card from each land touching this settlement.</p>` : ""}`;
+  } else if(G.phase === "over"){
+    h += `<h2>${esc(P(G.winner).name)} wins!</h2><p>${points(G.winner)} points after ${G.rolls} rolls.</p>`;
+  } else {
+    h += `<h2>${esc(p.name)}'s turn</h2><p>${points(pi)} of ${WIN} points</p>`;
+  }
+  h += `</div>`;
+
+  if(G.phase === "roll") h += `<button class="btn amber" style="min-height:80px;font-size:1.4rem" data-a="roll">Roll the dice</button>`;
+  if(G.dice && G.phase !== "roll" && G.phase !== "setup") h += `<div class="card"><div class="dice"><div class="die">${G.dice[0]}</div><div class="die">${G.dice[1]}</div><span class="sum">= ${G.dice[0] + G.dice[1]}</span></div></div>`;
+
+  if(G.phase === "discard"){
+    const di = G.discardQ[0], need = Math.floor(total(P(di).res) / 2), picked = total(UI.disc);
+    h += `<div class="card"><h3>${esc(P(di).name)}: give back ${need} cards</h3><p class="sub">You have more than 7 cards. Tap + to pick cards to give back. Picked ${picked} of ${need}.</p>
+      ${RES.map(r => `<div class="counter"><span class="rc" style="--rc:${RI[r].c};min-height:40px;flex:1;flex-direction:row;gap:8px"><span>${RI[r].label}</span><b style="font-size:1.1rem">${P(di).res[r]}</b></span>
+        <button class="mini" data-a="disc-" data-r="${r}" ${UI.disc[r] ? "" : "disabled"}>−</button><span class="n">${UI.disc[r]}</span><button class="mini" data-a="disc+" data-r="${r}" ${UI.disc[r] < P(di).res[r] && picked < need ? "" : "disabled"}>+</button></div>`).join("")}
+      <button class="btn go" data-a="disc-ok" ${picked === need ? "" : "disabled"}>Give back ${need} cards</button></div>`;
+  }
+  if(G.phase === "robber") h += `<div class="card"><h3>Move the robber</h3><p class="sub">Tap any land. It stops producing until the robber moves again, and you take 1 card from a player next to it.</p></div>`;
+  if(G.phase === "steal") h += `<div class="card"><h3>Take a card from</h3><div class="row">${G.victims.map(v => `<button class="btn" style="border:3px solid ${P(v).c}" data-a="steal" data-p="${v}">${esc(P(v).name)} (${total(P(v).res)})</button>`).join("")}</div></div>`;
+
+  if(G.phase !== "over") h += `<div class="card"><h3>${esc(p.name)}'s cards</h3>${resTiles(p.res)}</div>`;
+
+  if(G.phase === "main"){
+    const B = (k, label, note) => `<button class="btn build ${UI.mode === k ? "on" : ""}" data-a="mode" data-k="${k}" ${canBuild(k) ? "" : "disabled"}><b>${label}</b>${costPips(COST[k])}<span class="sub">${note}</span></button>`;
+    h += `<div class="card"><h3>Build</h3><div class="builds">
+        ${B("road", "Road", (LIMIT.road - used(pi, "road")) + " left")}
+        ${B("settlement", "Settlement", "1 point · " + (LIMIT.settlement - used(pi, "settlement")) + " left")}
+        ${B("city", "City", "2 points · " + (LIMIT.city - used(pi, "city")) + " left")}
+        <button class="btn build" disabled><b>Development card</b>${costPips({ore:1,wool:1,grain:1})}<span class="sub">Coming next update</span></button>
+      </div>${UI.mode ? `<p class="sub">Tap a glowing spot on the board, or tap the button again to cancel.</p>` : ""}</div>`;
+    const give = UI.give, rate = give ? portRate(pi, give) : null;
+    h += `<div class="card"><h3>Trade with the bank</h3><p class="sub">Give (number = how many you need)</p>
+      ${resTiles(Object.fromEntries(RES.map(r => [r, portRate(pi, r)])), {action:"give", sel:give, disabled:r => p.res[r] < portRate(pi, r)})}
+      <p class="sub">Get 1</p>${resTiles(Object.fromEntries(RES.map(r => [r, G.bank[r]])), {action:"get", sel:UI.get, disabled:r => r === give || G.bank[r] < 1})}
+      <button class="btn" data-a="trade" ${give && UI.get && give !== UI.get && p.res[give] >= rate ? "" : "disabled"}>${give && UI.get ? `Trade ${rate} ${RI[give].label} for 1 ${RI[UI.get].label}` : "Pick what to give and what to get"}</button></div>`;
+    h += `<div class="row"><button class="btn" data-a="undo" ${G.undo.length ? "" : "disabled"}>Undo</button><button class="btn go" data-a="end">End turn</button></div>`;
+  }
+  if(G.phase === "setup") h += `<div class="row"><button class="btn" data-a="undo" ${G.undo.length ? "" : "disabled"}>Undo</button></div>`;
+  if(G.phase === "over"){
+    h += `<div class="card"><h3>Final points</h3>${[...G.players.keys()].sort((a, b) => points(b) - points(a)).map(i => `<div class="counter"><span><b style="color:${P(i).c}">${esc(P(i).name)}</b></span><span class="n">${points(i)}</span></div>`).join("")}</div>
+      ${G.sent ? `<p class="sub">25 points added to ${esc(P(G.winner).name)} on the Road Rally scoreboard.</p>` : `<button class="btn amber" data-a="rally">Add 25 points to ${esc(P(G.winner).name)} in Road Rally</button>`}
+      <button class="btn go" data-a="menu">New game</button>`;
+  }
+  h += `<div class="card"><h3>What happened</h3><ul class="log">${G.log.slice(0, 6).map(l => `<li>${esc(l)}</li>`).join("")}</ul></div>`;
+  return h;
+}
+function chips(){
+  return G ? G.players.map((p, i) => `<span class="chip ${i === cur() && G.phase !== "over" ? "now" : ""}" style="--pc:${p.c}"><span class="dot">${esc(p.name[0] || "?")}</span>${esc(p.name)} <span class="vp">${points(i)}</span><small>${total(p.res)} cards</small></span>`).join("") : "";
+}
+let menuOpen = false, setupPlayers = null;
+function setupScreen(){
+  setupPlayers = setupPlayers || rallyPlayers().map(p => ({...p, on:true}));
+  const n = setupPlayers.filter(p => p.on).length;
+  return `<div class="setup"><h2>New game</h2>
+    <p class="sub">3 or 4 players. Pass the iPad around. First to ${WIN} points wins. Players take turns in this order.</p>
+    <div class="card">${setupPlayers.map((p, i) => `<label class="pl" style="--pc:${p.c}"><input type="checkbox" data-i="${i}" class="pon" ${p.on ? "checked" : ""}><span class="dot"></span><input type="text" id="pn-${i}" data-i="${i}" class="pname" value="${esc(p.name)}" maxlength="12" aria-label="Player ${i+1} name"></label>`).join("")}</div>
+    <div class="row"><button class="btn" data-a="shuffle">Shuffle who goes first</button><button class="btn go" data-a="start" ${n >= 3 ? "" : "disabled"}>Start with ${n} players</button></div>
+    ${n < 3 ? `<p class="sub">Tick at least 3 players.</p>` : ""}
+    ${G && G.phase !== "over" ? `<button class="btn" data-a="resume">Back to the current game</button>` : ""}
+    <div class="card"><h3>Costs</h3><p class="sub">Road: brick + lumber. Settlement: brick + lumber + wool + grain. City: 3 ore + 2 grain. Roll 7: more than 7 cards means give back half, then the robber moves.</p></div></div>`;
+}
+function render(){
+  $("#chips").innerHTML = menuOpen || !G ? "" : chips();
+  $("#talkBtn").textContent = talk ? "Voice on" : "Voice off";
+  $("#app").innerHTML = menuOpen || !G ? setupScreen() : `<div class="layout"><div class="boardwrap">${drawBoard()}</div><div class="panel">${panel()}</div></div>`;
+  const hd = document.querySelector("header"); if(hd) document.documentElement.style.setProperty("--hh", hd.offsetHeight + "px");
+  save();
+}
+addEventListener("resize", () => { const hd = document.querySelector("header"); if(hd) document.documentElement.style.setProperty("--hh", hd.offsetHeight + "px"); });
+let toastT; function toast(t){ const el = $("#toast"); el.textContent = t; el.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove("show"), 1800); }
+
+/* ---------- Input ---------- */
+if(typeof window !== "undefined" && document.addEventListener) {
+document.addEventListener("click", e => {
+  const t = e.target.closest("[data-a],[data-v],[data-e],[data-h]"); if(!t || t.disabled) return;
+  if(TTS) try{ speechSynthesis.cancel(); }catch(x){}
+  const d = t.dataset;
+  if(d.v !== undefined) ACT.place(G.phase === "setup" ? "settlement" : UI.mode, +d.v);
+  else if(d.e !== undefined) ACT.place("road", +d.e);
+  else if(d.h !== undefined) ACT.place("robber", +d.h);
+  else switch(d.a){
+    case "roll": ACT.roll(); break;
+    case "mode": UI.mode = UI.mode === d.k ? null : d.k; break;
+    case "give": UI.give = UI.give === d.r ? null : d.r; if(UI.get === UI.give) UI.get = null; break;
+    case "get": UI.get = UI.get === d.r ? null : d.r; break;
+    case "trade": ACT.trade(UI.give, UI.get); UI.give = null; UI.get = null; break;
+    case "disc+": UI.disc[d.r]++; break;
+    case "disc-": UI.disc[d.r]--; break;
+    case "disc-ok": ACT.discard(UI.disc); break;
+    case "steal": ACT.steal(+d.p); break;
+    case "end": ACT.end(); break;
+    case "undo": ACT.undo(); break;
+    case "talk": talk = !talk; break;
+    case "menu": menuOpen = true; setupPlayers = null; break;
+    case "resume": menuOpen = false; break;
+    case "shuffle": shuffle(setupPlayers); break;
+    case "start": { const ps = setupPlayers.filter(p => p.on); if(ps.length < 3) break; newGame(ps); menuOpen = false; say("New game. " + ps[0].name + ", place your first settlement."); break; }
+    case "rally": if(sendToRally(G.winner)){ G.sent = true; toast("Added 25 points in Road Rally"); } else toast("Open Road Rally once on this iPad first, then try again"); break;
+  }
+  render();
+});
+document.addEventListener("change", e => {
+  const t = e.target; if(!setupPlayers) return;
+  if(t.classList.contains("pon")){ setupPlayers[+t.dataset.i].on = t.checked; render(); }
+  if(t.classList.contains("pname")){ setupPlayers[+t.dataset.i].name = t.value.trim() || "Player " + (+t.dataset.i + 1); }
+});
+load(); if(!G) menuOpen = true; render();
+if("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+}
+</script>
+</body>
+</html>
