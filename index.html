@@ -1,0 +1,894 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b5394">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Himachal Road Rally</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout: one phone held by the front passenger. Milestone-stone scoreboard pinned on top, big-button game area below.
+   Colours: Ivy deep blue and sky blue on white; amber only as a small accent, never a large background. */
+:root{
+  --bg:#ffffff; --surface:#ffffff; --surface-2:#eaf4fa; --ink:#0d2a40; --muted:#526a7d; --line:#d3e3ee;
+  --pine:#0b5394; --pine-ink:#ffffff; --sky:#1a98cb; --stone:#ffffff; --cap:#f7a61b; --cap-ink:#2b1a00;
+  --good:#1d7a4b; --bad:#b0422d;
+  --p1:#c03e68; --p2:#1a98cb; --p3:#d9661a; --p4:#6a4dbd;
+  --display:"Baloo 2","Trebuchet MS",system-ui,sans-serif;
+  --body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --r:14px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0b1726; --surface:#12233a; --surface-2:#1a3150; --ink:#eaf2f8; --muted:#9fb4c6; --line:#244263;
+  --pine:#3aaee0; --pine-ink:#04121f; --sky:#3aaee0; --stone:#12233a; --cap:#f7a61b; --cap-ink:#2b1a00;
+  --good:#52c48b; --bad:#f07c64;
+  --p1:#ec7aa0; --p2:#5cc3ec; --p3:#f39a57; --p4:#a993ee; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0b1726; --surface:#12233a; --surface-2:#1a3150; --ink:#eaf2f8; --muted:#9fb4c6; --line:#244263;
+  --pine:#3aaee0; --pine-ink:#04121f; --sky:#3aaee0; --stone:#12233a; --cap:#f7a61b; --cap-ink:#2b1a00;
+  --good:#52c48b; --bad:#f07c64;
+  --p1:#ec7aa0; --p2:#5cc3ec; --p3:#f39a57; --p4:#a993ee; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.45;-webkit-tap-highlight-color:transparent}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--pine)}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--cap);outline-offset:2px}
+
+.app{max-width:560px;margin:0 auto;min-height:100%;display:flex;flex-direction:column}
+
+/* Header + milestone scoreboard */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--pine);color:var(--pine-ink);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px 12px}
+.brand{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.brand h1{font-family:var(--display);font-weight:800;font-size:1.35rem;margin:0;line-height:1.1;letter-spacing:.2px}
+.brand .leg{font-size:.8rem;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.ridge{display:block;width:100%;height:18px;margin:4px 0 8px}
+.stones{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.stone{position:relative;background:var(--stone);color:var(--ink);border-radius:999px 999px 6px 6px;overflow:hidden;text-align:center;
+  box-shadow:0 2px 0 rgba(0,0,0,.25);border:0;padding:0}
+.stone .cap{background:var(--cap);color:var(--cap-ink);font-family:var(--display);font-weight:700;font-size:.82rem;padding:7px 2px 1px;line-height:1.2;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stone .pts{font-family:var(--display);font-weight:800;font-size:1.45rem;line-height:1.1;padding-top:3px;font-variant-numeric:tabular-nums}
+.stone .unit{font-size:.66rem;color:var(--muted);padding-bottom:5px;letter-spacing:.6px;text-transform:uppercase}
+.stone .bar{height:4px}
+.stone.lead .cap::after{content:" \2605"}
+.boost{position:absolute;top:2px;right:4px;background:var(--bad);color:#fff;font-size:.62rem;font-weight:700;border-radius:6px;padding:0 4px;line-height:1.5}
+.stone.bump{animation:bump .5s ease}
+@keyframes bump{40%{transform:translateY(-5px) scale(1.05)}}
+
+/* Main */
+main{flex:1;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px 96px;display:flex;flex-direction:column;gap:14px}
+h2{font-family:var(--display);font-weight:800;font-size:1.6rem;line-height:1.1;margin:0;text-wrap:balance}
+h3{font-family:var(--display);font-weight:700;font-size:1.1rem;margin:0}
+.sub{color:var(--muted);margin:0;font-size:.95rem}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.head{display:flex;align-items:center;gap:10px}
+.back{border:1px solid var(--line);background:var(--surface);border-radius:999px;width:44px;height:44px;flex:none;font-size:1.3rem;line-height:1}
+
+.games{display:grid;gap:10px}
+.game{display:grid;grid-template-columns:52px 1fr;gap:12px;align-items:center;text-align:left;background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r);padding:12px 14px;min-height:76px}
+.game:active{transform:scale(.99)}
+.sign{width:52px;height:52px;display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:1.25rem;color:var(--pine-ink);background:var(--sky);border-radius:10px}
+.sign.diamond{background:var(--cap);color:var(--cap-ink);border-radius:8px;transform:rotate(45deg) scale(.78)}
+.sign.diamond span{transform:rotate(-45deg)}
+.sign.circle{border-radius:50%;background:var(--surface);color:var(--bad);border:5px solid var(--bad)}
+.game b{font-family:var(--display);font-size:1.15rem;font-weight:700;display:block;line-height:1.2}
+.game small{color:var(--muted);font-size:.88rem;display:block}
+.quick{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.note{background:var(--surface-2);border-radius:var(--r);padding:12px 14px;font-size:.92rem;color:var(--muted)}
+.note strong{color:var(--ink)}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px 16px;display:flex;flex-direction:column;gap:12px}
+.card.board{background:var(--pine);color:var(--pine-ink);border:0;box-shadow:inset 0 -5px 0 var(--cap)}
+.card.board .lvl{color:var(--pine-ink);opacity:.85}
+.big{font-family:var(--display);font-weight:700;font-size:1.65rem;line-height:1.2;text-wrap:balance;margin:0}
+.lvl{font-size:.75rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-weight:700}
+.answer{font-family:var(--display);font-weight:700;font-size:1.3rem;color:var(--good);margin:0}
+
+.btn{border:0;border-radius:12px;padding:14px 16px;min-height:52px;font-weight:700;background:var(--surface-2);color:var(--ink);flex:1 1 auto}
+.btn.go{background:var(--pine);color:var(--pine-ink)}
+.btn.good{background:var(--good);color:var(--surface)}
+.btn.bad{background:transparent;color:var(--bad);border:2px solid var(--bad)}
+.btn.small{min-height:40px;padding:8px 12px;flex:0 0 auto;font-size:.9rem}
+.btn:disabled{opacity:.4}
+
+.who{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.pbtn{border:2px solid var(--pc);background:var(--surface);color:var(--ink);border-radius:12px;min-height:54px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;padding:6px}
+.pbtn.on{background:var(--pc);color:var(--surface)}
+.pbtn .dot{width:12px;height:12px;border-radius:50%;background:var(--pc);flex:none}
+.pbtn.on .dot{background:var(--surface)}
+.pbtn.out{opacity:.35;text-decoration:line-through}
+
+.timer{display:flex;align-items:center;gap:12px}
+.timer .num{font-family:var(--display);font-weight:800;font-size:2.4rem;min-width:2.2ch;text-align:right;font-variant-numeric:tabular-nums;line-height:1}
+.timer .track{flex:1;height:12px;background:var(--surface-2);border-radius:99px;overflow:hidden}
+.timer .fill{height:100%;background:var(--sky);border-radius:99px;transition:width 1s linear}
+.timer.low .fill{background:var(--bad)}
+.timer.low .num{color:var(--bad)}
+.timeup{font-family:var(--display);font-weight:800;color:var(--bad);font-size:1.3rem;margin:0}
+
+.letters{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.letters button{border:1px solid var(--line);background:var(--surface);border-radius:10px;min-height:42px;font-family:var(--display);font-weight:700;font-size:1.1rem}
+.letters button.on{background:var(--cap);color:var(--cap-ink);border-color:var(--cap)}
+.bigletter{font-family:var(--display);font-weight:800;font-size:4.5rem;line-height:1;margin:0;text-align:center}
+
+.counter{display:flex;align-items:center;justify-content:center;gap:18px}
+.counter .n{font-family:var(--display);font-weight:800;font-size:3.6rem;line-height:1;font-variant-numeric:tabular-nums;min-width:3ch;text-align:center}
+.counter button{width:64px;height:64px;border-radius:50%;border:0;background:var(--pine);color:var(--pine-ink);font-size:2rem;font-weight:700}
+.counter button.minus{background:var(--surface-2);color:var(--ink);width:48px;height:48px;font-size:1.5rem}
+
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:10px 6px;border-bottom:1px solid var(--line)}
+th{font-size:.75rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+td.n,th.n{text-align:right}
+.log{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:.92rem}
+.log li{display:flex;justify-content:space-between;gap:10px;border-bottom:1px dashed var(--line);padding:4px 0}
+
+.field{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:center}
+.field input,.field select,.wide input{width:100%;min-width:0;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px;min-height:46px}
+.wide{display:grid;gap:6px}
+.toggle{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:6px 0}
+.toggle input{width:26px;height:26px;accent-color:var(--pine)}
+
+.champ{text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px}
+.champ .stone{width:130px}
+.champ .stone .cap{font-size:1.05rem;padding-top:14px}
+.champ .stone .pts{font-size:2.6rem}
+
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:6;background:linear-gradient(to top,var(--bg) 70%,transparent);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-top:18px;padding-bottom:calc(12px + env(safe-area-inset-bottom,0px))}
+.dock .inner{max-width:528px;margin:0 auto;display:flex;gap:10px}
+.dock .btn{min-height:48px}
+
+.toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 150px);transform:translateX(-50%) translateY(-10px);background:var(--ink);color:var(--bg);
+  padding:10px 18px;border-radius:999px;font-family:var(--display);font-weight:700;font-size:1.1rem;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:20;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+.opts{display:grid;gap:10px}
+.opt{display:flex;gap:12px;align-items:center;text-align:left;background:var(--surface);color:var(--ink);border:2px solid var(--line);border-radius:12px;padding:10px 14px;min-height:62px;font-weight:700;font-size:1.1rem}
+.opt .key{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--surface-2);color:var(--pine);font-family:var(--display);font-weight:800;font-size:1.15rem;flex:none}
+.opt:disabled{cursor:default}
+.opt.right{border-color:var(--good)} .opt.right .key{background:var(--good);color:var(--surface)}
+.opt.wrong{border-color:var(--bad)} .opt.wrong .key{background:var(--bad);color:var(--surface)}
+.opt.dim{opacity:.45}
+.result{font-family:var(--display);font-weight:800;font-size:1.3rem;margin:0}
+.result.good{color:var(--good)} .result.bad{color:var(--bad)}
+.cardtop{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.say{border:1.5px solid currentColor;background:transparent;color:inherit;border-radius:999px;padding:4px 12px;font-size:.82rem;font-weight:700;min-height:34px;flex:none;opacity:.85}
+.dock .inner{align-items:flex-end}
+.mic{flex:0 0 68px;height:68px;border-radius:50%;border:0;background:var(--cap);color:var(--cap-ink);display:grid;place-items:center;box-shadow:0 3px 0 rgba(0,0,0,.2);margin-top:-14px}
+.mic svg{width:30px;height:30px}
+.mic.on{background:var(--bad);color:#fff;animation:pulse 1.1s ease-in-out infinite}
+@keyframes pulse{50%{transform:scale(1.08)}}
+.heard{max-width:528px;margin:0 auto 10px;background:var(--ink);color:var(--bg);border-radius:12px;padding:10px 14px;font-weight:700;font-size:.95rem}
+.cmds{display:grid;gap:6px;font-size:.92rem;margin:0;padding:0;list-style:none}
+.cmds li{display:flex;justify-content:space-between;gap:12px;border-bottom:1px dashed var(--line);padding:4px 0}
+.cmds li span:first-child{font-weight:700}
+.cmds li span:last-child{color:var(--muted);text-align:right}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand"><h1>Himachal Road Rally</h1><span class="leg" id="leg"></span></div>
+    <svg class="ridge" viewBox="0 0 400 18" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M0 18 L40 6 L62 12 L95 1 L130 13 L160 7 L196 14 L232 3 L262 11 L300 5 L338 13 L370 4 L400 10 L400 18 Z" fill="currentColor" opacity=".22"/>
+      <path d="M88 3.5 L95 1 L101 4 Z M226 5 L232 3 L238 5.5 Z M365 5.5 L370 4 L375 6 Z" fill="currentColor" opacity=".8"/>
+    </svg>
+    <div class="stones" id="stones"></div>
+  </header>
+  <main id="main"></main>
+  <div class="dock"><div class="heard" id="heard" role="status" aria-live="polite" hidden></div><div class="inner">
+    <button class="btn" data-a="go" data-s="home" id="homeBtn">Games</button>
+    <button class="btn" data-a="go" data-s="scores">Scores</button>
+    <button class="mic" data-a="mic" id="micBtn" aria-label="Talk: say a voice command" aria-pressed="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></svg>
+    </button>
+    <button class="btn" data-a="undo" id="undoBtn">Undo</button>
+  </div></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</div>
+
+<script>
+/* ---------- Content ---------- */
+const LEVELS = {
+  easy:   {name:"Little Explorer", ant:30, atlas:20},
+  hard:   {name:"Trailblazer",     ant:15, atlas:10},
+  expert: {name:"Mountain Guide",  ant:12, atlas:8}
+};
+
+const SPOT = {
+  easy: ["A red car","A cow","A dog","A big bus","A monkey","A truck with colourful paintings","A river","A bridge","A tunnel","A tall pine tree",
+    "A mountain with clouds on top","A white car","A tractor","A goat","A flag","A temple","A waterfall","Someone selling fruit","A really big rock","A horse",
+    "A sheep","A petrol pump","An ambulance","A blue car","A motorbike with two people","A yellow and white milestone","A police car","A cloud shaped like an animal",
+    "A house on a hill","A shop selling toys"],
+  hard: ["A number plate that is not DL, HR, HP or PB","A truck saying HORN OK PLEASE","A milestone showing the distance to Manali or Shimla",
+    "A road safety slogan board on a mountain curve","An apple orchard","Someone wearing a Himachali topi","Tibetan prayer flags",
+    "A dhaba named after a person","A number plate whose digits add up to 10","A speed limit sign","An HRTC bus","A landslide warning sign",
+    "A car the same model as ours","A paraglider","A stone house with a slate roof","A town name written in Hindi and English",
+    "A ropeway or cable car","A car with luggage on the roof","A dam or hydro power station","A vehicle from a state you have never visited",
+    "A milestone with less than 10 km left","A sign for a place ending in -pur","A truck carrying apples or vegetables","A board that says Blow Horn"],
+  expert: ["A number plate from a southern state (KA, TN, KL, AP, TS)","A number plate whose digits read the same backwards","A car the same colour as ours going the other way",
+    "Three trucks in a row","A sign with a spelling mistake","A road slogan board nobody has spotted yet today","An electric vehicle with a green plate",
+    "A number plate with all four digits the same","A green-topped milestone (state highway)","A vehicle older than Zubbu","A plate from a state that starts with M",
+    "A temple at the top of a hill","A board showing the height above sea level","A dhaba advertising a Punjabi dish","A shop selling local shawls",
+    "A bus from another state's transport department","A traffic policeman with a whistle","A tractor carrying more than 5 people"]
+};
+
+const RACE = ["A cow sitting on the road","A monkey","A tunnel","A waterfall","A pine forest","An HRTC bus","A yellow milestone","A bridge over a river",
+  "A truck with HORN OK PLEASE","A temple flag","A sleeping dog","A milestone showing more than 100 km","A goat herd","A paraglider",
+  "A police barrier","Somebody on a horse","A red truck","A road slogan board","A car from Delhi (DL)","A shop selling corn on the cob"];
+
+const QUIZ = {
+  easy: [
+    ["How many legs does a spider have?","8",["6","10"]],["What colour do you get if you mix blue and yellow?","Green",["Purple","Orange"]],
+    ["Which animal is called the King of the Jungle?","Lion",["Elephant","Bear"]],["How many days are there in a week?","7",["5","10"]],
+    ["What do bees make?","Honey",["Milk","Jam"]],["What do we call frozen water?","Ice",["Steam","Sand"]],
+    ["Which is the biggest animal on land?","Elephant",["Giraffe","Horse"]],["How many wheels does a car have?","4",["2","3"]],
+    ["What is India's national bird?","Peacock",["Parrot","Crow"]],["What is India's national animal?","Tiger",["Lion","Elephant"]],
+    ["What is India's national fruit?","Mango",["Apple","Banana"]],["What do we call a baby cat?","Kitten",["Puppy","Calf"]],
+    ["What do we call a baby dog?","Puppy",["Kitten","Cub"]],["How many fingers are there on two hands?","10",["8","12"]],
+    ["Which shape has three sides?","Triangle",["Square","Circle"]],["Which day comes after Wednesday?","Thursday",["Tuesday","Friday"]],
+    ["Which planet do we live on?","Earth",["Mars","Jupiter"]],["What is 5 + 3?","8",["7","9"]],["What is 10 minus 4?","6",["5","7"]],
+    ["What is 3 times 2?","6",["5","8"]],["You have 4 apples and eat 1. How many are left?","3",["2","5"]],
+    ["Where do fish live?","In water",["In trees","In sand"]],["How many months are in a year?","12",["10","7"]],
+    ["Which season is the coldest?","Winter",["Summer","Monsoon"]],["Which is hotter, the Sun or the Moon?","The Sun",["The Moon","Both are the same"]],
+    ["What does a caterpillar turn into?","A butterfly",["A bee","A spider"]],["Which is taller, a hill or a mountain?","A mountain",["A hill","Both are the same"]],
+    ["How many colours are there in a rainbow?","7",["5","9"]],["What is the capital of India?","New Delhi",["Mumbai","Kolkata"]],
+    ["Which animal gives us wool?","Sheep",["Cow","Dog"]],["Which animal carries its home on its back?","Snail",["Rabbit","Frog"]],
+    ["Riddle: What has hands but cannot clap?","A clock",["A chair","A tree"]],["Riddle: What gets wetter the more it dries?","A towel",["A shoe","A cloud"]],
+    ["Riddle: What has keys but cannot open a lock?","A piano",["A book","A bottle"]],["Riddle: What goes up but never comes down?","Your age",["A ball","A kite"]],
+    ["Riddle: I have lots of teeth but I cannot bite. What am I?","A comb",["A dog","A crocodile"]],["Which animal has black and white stripes?","Zebra",["Tiger","Giraffe"]],
+    ["Which bird can copy the words we say?","Parrot",["Crow","Sparrow"]],["What do plants need to grow?","Sunlight and water",["Moonlight only","Wind only"]],
+    ["How many sides does a square have?","4",["3","5"]],["Which fruit grows a lot in Himachal?","Apples",["Coconuts","Pineapples"]],
+    ["Which animals do we often see on mountain roads in Himachal?","Monkeys and goats",["Camels","Kangaroos"]],
+    ["What do we call a long hole through a mountain for cars?","A tunnel",["A bridge","A lake"]]
+  ],
+  hard: [
+    ["What is the capital of Himachal Pradesh?","Shimla",["Manali","Kullu","Mandi"]],["Which river flows through Manali?","Beas",["Yamuna","Sutlej","Ravi"]],
+    ["Which tunnel connects Manali to the Lahaul valley?","Atal Tunnel",["Jawahar Tunnel","Banihal Tunnel","Zojila Tunnel"]],
+    ["Which fruit is Himachal most famous for growing?","Apples",["Mangoes","Oranges","Grapes"]],
+    ["What is the state animal of Himachal Pradesh?","Snow leopard",["Red panda","Bengal tiger","Yak"]],
+    ["Which famous toy train runs to Shimla?","Kalka–Shimla Railway",["Darjeeling Himalayan Railway","Nilgiri Mountain Railway","Matheran Hill Railway"]],
+    ["In which Himachal town does the Dalai Lama live?","McLeod Ganj",["Manali","Kasauli","Chamba"]],
+    ["The Kullu valley is famous for which festival?","Kullu Dussehra",["Onam","Bihu","Pongal"]],
+    ["Why does water boil below 100°C high up in the mountains?","Air pressure is lower",["It is colder","There is more oxygen","The water is cleaner"]],
+    ["What is the chemical symbol for gold?","Au",["Ag","Go","Gd"]],["Which is the largest planet in our solar system?","Jupiter",["Saturn","Earth","Neptune"]],
+    ["How many states does India have?","28",["29","26","30"]],["Which gas do plants take in from the air?","Carbon dioxide",["Oxygen","Nitrogen","Hydrogen"]],
+    ["What is the longest river in India?","Ganga",["Yamuna","Godavari","Brahmaputra"]],
+    ["Who wrote Jana Gana Mana?","Rabindranath Tagore",["Bankim Chandra Chatterjee","Sarojini Naidu","Muhammad Iqbal"]],
+    ["What is 15% of 200?","30",["15","20","35"]],["What is the square root of 144?","12",["14","11","16"]],
+    ["What is the highest mountain in the world?","Mount Everest",["K2","Kangchenjunga","Nanda Devi"]],
+    ["What is the largest organ of the human body?","Skin",["Liver","Heart","Lungs"]],["Which planet is called the Red Planet?","Mars",["Venus","Jupiter","Mercury"]],
+    ["In which year did India become independent?","1947",["1950","1942","1857"]],["Which Mughal emperor built the Taj Mahal?","Shah Jahan",["Akbar","Babur","Aurangzeb"]],
+    ["What is the smallest prime number?","2",["1","3","0"]],["How many sides does a hexagon have?","6",["5","7","8"]],
+    ["Which Indian city is called the Pink City?","Jaipur",["Udaipur","Jodhpur","Agra"]],
+    ["A car goes at 60 km/h. How far does it travel in 2.5 hours?","150 km",["120 km","160 km","125 km"]],
+    ["Riddle: The more you take, the more you leave behind.","Footsteps",["Food","Books","Breaths"]],
+    ["Riddle: What can travel around the world while staying in a corner?","A postage stamp",["A spider","A shadow","A clock"]],
+    ["What is the hardest natural substance?","Diamond",["Iron","Gold","Granite"]],
+    ["Which blood cells fight infection?","White blood cells",["Red blood cells","Platelets","Plasma"]],
+    ["What is the currency of Japan?","Yen",["Yuan","Won","Ringgit"]],["Which is the largest ocean?","Pacific Ocean",["Atlantic Ocean","Indian Ocean","Arctic Ocean"]],
+    ["A light year measures what?","Distance",["Time","Speed","Brightness"]],
+    ["Who was India's first Prime Minister?","Jawaharlal Nehru",["Sardar Patel","Lal Bahadur Shastri","Indira Gandhi"]],
+    ["What is India's national aquatic animal?","Ganges river dolphin",["Blue whale","Crocodile","Turtle"]],
+    ["What does a seismograph measure?","Earthquakes",["Rainfall","Wind speed","Temperature"]],
+    ["Which vitamin does our skin make from sunlight?","Vitamin D",["Vitamin C","Vitamin A","Vitamin B12"]],["What is 12 × 12?","144",["124","132","148"]],
+    ["Which country has the largest population in the world?","India",["China","USA","Indonesia"]],
+    ["What is the freezing point of water in Fahrenheit?","32°F",["0°F","100°F","212°F"]]
+  ],
+  expert: [
+    ["Which mountain pass does the Atal Tunnel bypass?","Rohtang Pass",["Baralacha Pass","Kunzum Pass","Jalori Pass"]],
+    ["Roughly how long is the Atal Tunnel?","About 9 km",["About 3 km","About 15 km","About 25 km"]],
+    ["Who was the first Chief Minister of Himachal Pradesh?","Dr Yashwant Singh Parmar",["Virbhadra Singh","Shanta Kumar","Prem Kumar Dhumal"]],
+    ["In which year did Himachal become a full state?","1971",["1948","1966","1956"]],
+    ["What is the highest peak in Himachal Pradesh?","Reo Purgyil",["Kinnaur Kailash","Indrasan","Deo Tibba"]],
+    ["The Bhakra Dam is built on which river?","Sutlej",["Beas","Ravi","Chenab"]],["The Pong Dam is built on which river?","Beas",["Sutlej","Ravi","Yamuna"]],
+    ["Which town was the summer capital of British India?","Shimla",["Darjeeling","Mussoorie","Ooty"]],
+    ["Which language is Himachal's second official language?","Sanskrit",["Punjabi","Urdu","Pahari"]],
+    ["The Great Himalayan National Park is in which district?","Kullu",["Kangra","Chamba","Shimla"]],
+    ["Kasol is in which valley?","Parvati Valley",["Spiti Valley","Kangra Valley","Sangla Valley"]],
+    ["In which year did the Kalka–Shimla railway open?","1903",["1853","1925","1947"]],
+    ["What kind of track gauge is the Kalka–Shimla railway?","Narrow gauge",["Broad gauge","Standard gauge","Metre gauge"]],
+    ["How many bones does an adult human have?","206",["186","212","300"]],
+    ["Roughly what is the speed of light?","About 3 lakh km per second",["About 3,000 km per second","About 30 lakh km per second","About 300 km per second"]],
+    ["Who was the first Indian to win an individual Olympic gold?","Abhinav Bindra",["Neeraj Chopra","Leander Paes","Milkha Singh"]],
+    ["Which article of the Constitution abolished untouchability?","Article 17",["Article 21","Article 370","Article 14"]],
+    ["What is the capital of Australia?","Canberra",["Sydney","Melbourne","Perth"]],
+    ["Which gas makes up most of the air we breathe?","Nitrogen",["Oxygen","Carbon dioxide","Argon"]],
+    ["Who wrote Malgudi Days?","R. K. Narayan",["Ruskin Bond","Mulk Raj Anand","Vikram Seth"]],
+    ["Who painted the Mona Lisa?","Leonardo da Vinci",["Michelangelo","Pablo Picasso","Vincent van Gogh"]],
+    ["Which element has atomic number 1?","Hydrogen",["Helium","Oxygen","Carbon"]],
+    ["Riddle: I have cities but no houses, forests but no trees, water but no fish.","A map",["A dream","A painting","A book"]],
+    ["Riddle: I speak without a mouth and hear without ears. The mountains are full of me.","An echo",["The wind","A radio","A river"]],
+    ["Who started building the Qutub Minar?","Qutb-ud-din Aibak",["Iltutmish","Alauddin Khilji","Akbar"]],
+    ["Which planet has the most known moons?","Saturn",["Jupiter","Uranus","Neptune"]],
+    ["The Rohtang Pass connects the Kullu valley to which valley?","Lahaul valley",["Kangra valley","Parvati valley","Chamba valley"]],
+    ["Which city is the capital of both Punjab and Haryana?","Chandigarh",["Amritsar","Ambala","Ludhiana"]],
+    ["Who designed the city of Chandigarh?","Le Corbusier",["Edwin Lutyens","Charles Correa","Laurie Baker"]],
+    ["What does BRO stand for, the people who build mountain roads?","Border Roads Organisation",["Bharat Roads Office","Border Rescue Operations","Board of Road Officers"]]
+  ]
+};
+
+const ATLAS_CATS = [
+  {name:"Places", hint:"Cities, states, countries, rivers, mountains"},
+  {name:"Animals", hint:"Any animal, bird, fish or insect"},
+  {name:"Food", hint:"Dishes, fruits, vegetables, sweets"},
+  {name:"Names", hint:"First names of people, real or from stories"}
+];
+
+const IDEAS = {
+  easy: ["An elephant","A banana","Your school bag","A rainbow","A football","Ice cream","A tiger","A train","Grandma's house","A kite","A butterfly","Chocolate"],
+  hard: ["The Taj Mahal","A smartphone","Mount Everest","Virat Kohli","Harry Potter","A volcano","The Moon","A pressure cooker","A paraglider","Spider-Man","The Atal Tunnel","A cricket bat"],
+  expert: ["The Kalka–Shimla toy train","Amitabh Bachchan","The Eiffel Tower","A ceiling fan","Chandrayaan-3","A yak","Mahatma Gandhi","Netflix","The Indian rupee note","A sewing machine"]
+};
+
+/* ---------- State ---------- */
+const KEY = "himachal-rally-v1";
+function fresh(){
+  return {
+    players:[
+      {id:"mom",name:"Mom",level:"expert",c:1},{id:"dad",name:"Dad",level:"expert",c:2},
+      {id:"kippi",name:"Kippi",level:"easy",c:3},{id:"zubbu",name:"Zubbu",level:"hard",c:4}
+    ],
+    leg:"Delhi → Himachal", day:1, today:{}, days:[], log:[],
+    settings:{catchup:true, sound:true, awake:true, talk:true, rate:0.95, voiceName:""},
+    screen:"home",
+    g:{spot:{pid:"kippi",cards:{},race:null}, quiz:{turn:0,q:null,opts:null,picked:null}, ant:{turn:0,letter:"M",running:false,up:false},
+       atlas:{cat:null,alive:[],turn:0,running:false,up:false,winner:null}, tq:{thinker:null,count:0,idea:null,done:null},
+       resetAsk:false}
+  };
+}
+let S = fresh();
+function load(){ try{ const raw = localStorage.getItem(KEY); if(raw){ const d = JSON.parse(raw); if(d && d.players) S = revive(d); } }catch(e){} }
+function revive(d){ const f = fresh(); const s = Object.assign(f, d); s.settings = Object.assign(fresh().settings, d.settings || {}); return s; }
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const P = id => S.players.find(p => p.id === id);
+const today = id => S.today[id] || 0;
+const trip = id => S.days.reduce((t,d) => t + (d.scores[id]||0), 0) + today(id);
+const shuffle = a => { for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
+const decks = {};
+function draw(key, arr){ if(!decks[key] || !decks[key].length) decks[key] = shuffle(arr.map((_,i)=>i)); return arr[decks[key].pop()]; }
+
+/* Catch-up: whoever is last today earns double, once the leader is 30+ points ahead */
+function boosted(id){
+  if(!S.settings.catchup) return false;
+  const sc = S.players.map(p => today(p.id)); const min = Math.min(...sc), max = Math.max(...sc);
+  return max - min >= 30 && today(id) === min;
+}
+function award(id, base, label){
+  const mult = boosted(id) ? 2 : 1, pts = base * mult;
+  S.today[id] = today(id) + pts;
+  S.log.push({id, pts, label});
+  save();
+  toast("+" + pts + " " + P(id).name + (mult > 1 ? " (double!)" : ""));
+  say(pts + " points to " + P(id).name + (mult > 1 ? ". Double points!" : "!"));
+  renderStones(id);
+}
+let toastT;
+function toast(msg){ const t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(()=>t.classList.remove("show"), 1600); }
+
+/* ---------- Timer & sound ---------- */
+let tick = null, T = {left:0,total:0};
+let actx = null;
+function beep(){
+  if(!S.settings.sound) return;
+  try{
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    [0, .22].forEach(d => { const o = actx.createOscillator(), g = actx.createGain();
+      o.frequency.value = 660; o.connect(g); g.connect(actx.destination);
+      g.gain.setValueAtTime(.25, actx.currentTime + d); g.gain.exponentialRampToValueAtTime(.001, actx.currentTime + d + .18);
+      o.start(actx.currentTime + d); o.stop(actx.currentTime + d + .2); });
+  }catch(e){}
+}
+function startTimer(secs, onEnd){
+  stopTimer(); T = {left:secs, total:secs};
+  tick = setInterval(() => { T.left--; paintTimer();
+    if(T.left === 5 && T.total > 8) say("Five seconds");
+    if(T.left <= 0){ stopTimer(); beep(); say("Time's up!"); onEnd(); } }, 1000);
+}
+function stopTimer(){ if(tick){ clearInterval(tick); tick = null; } }
+function timerHTML(){ return `<div class="timer" id="timer"><span class="num">${T.left}</span><div class="track"><div class="fill" style="width:${T.total?100*T.left/T.total:0}%"></div></div></div>`; }
+function paintTimer(){ const el = $("#timer"); if(!el) return; el.querySelector(".num").textContent = T.left;
+  el.querySelector(".fill").style.width = (100*T.left/T.total) + "%"; el.classList.toggle("low", T.left <= 5); }
+
+/* Keep the screen on while playing */
+let lock = null;
+async function wake(){ if(!S.settings.awake || lock || !("wakeLock" in navigator)) return;
+  try{ lock = await navigator.wakeLock.request("screen"); lock.addEventListener("release", () => lock = null); }catch(e){} }
+document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible") wake(); });
+
+/* ---------- Talking (text to speech, works offline with the phone's own voices) ---------- */
+const TTS = "speechSynthesis" in window;
+let voice = null, lastLine = "";
+function pickVoice(){
+  if(!TTS) return; const vs = speechSynthesis.getVoices(); if(!vs.length) return;
+  const chosen = S.settings.voiceName && vs.find(v => v.name === S.settings.voiceName);
+  voice = chosen || vs.find(v => /^en[-_]GB/i.test(v.lang) && /female|libby|sonia|serena|kate|martha/i.test(v.name)) || vs.find(v => /^en[-_]GB/i.test(v.lang))
+    || vs.find(v => /^en[-_](US|AU|IE)/i.test(v.lang)) || vs.find(v => /^en/i.test(v.lang)) || null;
+}
+const englishVoices = () => TTS ? speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang)) : [];
+if(TTS){ pickVoice(); speechSynthesis.onvoiceschanged = () => { pickVoice(); if(S.screen === "settings") render(); }; }
+function say(text){
+  if(!TTS || !S.settings.talk || !text) return;
+  try{ const u = new SpeechSynthesisUtterance(String(text).replace(/→/g, " to "));
+    if(voice){ u.voice = voice; u.lang = voice.lang; } else u.lang = "en-IN";
+    u.rate = S.settings.rate || 0.95; speechSynthesis.speak(u); }catch(e){}
+}
+function sayLine(text){ lastLine = text; say(text); }
+function hush(){ if(TTS) try{ speechSynthesis.cancel(); }catch(e){} }
+
+/* ---------- Voice commands (push to talk, one command per tap) ---------- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+let rec = null, listening = false, heardT;
+function heard(msg, keep){ const h = $("#heard"); h.textContent = msg; h.hidden = false; clearTimeout(heardT); if(!keep) heardT = setTimeout(() => h.hidden = true, 5000); }
+function setMic(on){ listening = on; const m = $("#micBtn"); m.classList.toggle("on", on); m.setAttribute("aria-pressed", on); }
+function listen(){
+  if(!SR){ heard("This browser can't take voice commands. Use Chrome on Android or Safari on iPhone."); return; }
+  if(listening){ try{ rec.stop(); }catch(e){} return; }
+  rec = new SR(); rec.lang = "en-IN"; rec.interimResults = true; rec.maxAlternatives = 4; rec.continuous = false;
+  rec.onresult = e => {
+    const r = e.results[e.results.length - 1], txt = r[0].transcript;
+    if(!r.isFinal){ heard("“" + txt + "”", true); return; }
+    const alts = Array.from(r).map(x => x.transcript);
+    if(alts.some(a => hear(a))){ save(); render(); heard("Heard: “" + txt + "”"); }
+    else { heard("Didn't get “" + txt + "”. Try again or use the buttons."); say("Sorry, say that again."); }
+  };
+  rec.onerror = e => {
+    const blocked = "The microphone is blocked. Allow microphone access for this site in your browser settings, then tap the mic again.";
+    const m = {"not-allowed":blocked, "service-not-allowed":blocked,
+      "network":"Voice commands need mobile signal. Use the buttons until the network is back.",
+      "no-speech":"Didn't hear anything. Tap the mic and speak close to the phone.",
+      "audio-capture":"No microphone found on this device."}[e.error];
+    if(m) heard(m);
+  };
+  rec.onend = () => setMic(false);
+  try{ rec.start(); setMic(true); heard("Listening… say one command", true); }
+  catch(e){ setMic(false); heard("Couldn't start the microphone."); }
+}
+
+const norm = s => String(s).toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+const has = (t, ...ks) => ks.some(k => (" " + t + " ").includes(" " + k + " "));
+function lev(a, b){ const d = Array.from({length:a.length+1}, (_, i) => [i]);
+  for(let j = 1; j <= b.length; j++) d[0][j] = j;
+  for(let i = 1; i <= a.length; i++) for(let j = 1; j <= b.length; j++)
+    d[i][j] = Math.min(d[i-1][j] + 1, d[i][j-1] + 1, d[i-1][j-1] + (a[i-1] === b[j-1] ? 0 : 1));
+  return d[a.length][b.length]; }
+/* Speech engines often mishear nicknames, so each default player gets sound-alikes */
+const ALIAS = {
+  mom:["mom","mum","mummy","mommy","mumma","mamma","mother","maa"],
+  dad:["dad","daddy","papa","pappa","father","dada"],
+  kippi:["kippi","kippy","kipi","kippie","kipper","keepy","kipy","keppi","kipp","kip"],
+  zubbu:["zubbu","zubu","zoobu","zooboo","zubbo","jubbu","subbu","zoo boo","zubby","juboo","zuboo","zubair"]
+};
+function findPlayer(t){
+  for(const p of S.players){ const names = [norm(p.name), ...(ALIAS[p.id] || [])].filter(Boolean); if(names.some(n => has(t, n))) return p.id; }
+  const words = t.split(" ");
+  for(const p of S.players){ const n = norm(p.name); if(n.length < 4) continue;
+    if(words.some(w => Math.abs(w.length - n.length) <= 2 && lev(w, n) <= (n.length >= 6 ? 2 : 1))) return p.id; }
+  return null;
+}
+const LETTER_WORDS = {ay:"A",bee:"B",be:"B",see:"C",sea:"C",dee:"D",ef:"F",gee:"G",jee:"G",aitch:"H",edge:"H",eye:"I",jay:"J",kay:"K",okay:"K",el:"L",em:"M",en:"N",oh:"O",pee:"P",pea:"P",are:"R",ess:"S",es:"S",tee:"T",tea:"T",you:"U",vee:"V",why:"Y",zed:"Z",zee:"Z"};
+function letterFrom(t){ const m = t.match(/(?:^| )letter ([a-z]+)/); if(!m) return null;
+  const w = m[1]; return w.length === 1 ? w.toUpperCase() : (LETTER_WORDS[w] || null); }
+const OPT_WORDS = [["a","ay","eh","hey"],["b","bee","be","bi"],["c","see","sea","si"],["d","dee","di"]];
+function optionFrom(t, opts){
+  const m = t.match(/(?:option|answer|letter) ([a-d])(?: |$)/); if(m) return Math.min("abcd".indexOf(m[1]), opts.length - 1);
+  const w = t.split(" "); if(w.length <= 3){ const last = w[w.length - 1]; const k = OPT_WORDS.findIndex(ws => ws.includes(last)); if(k >= 0 && k < opts.length) return k; }
+  return opts.findIndex(o => { const n = norm(o).replace(/^(a|an|the) /, ""); return n.length > 0 && has(t, n); });
+}
+const CAT_WORDS = [["places","place","cities","city","countries","country"],["animals","animal"],["food","foods","dishes"],["names","name","people"]];
+const NAV = [["spot",["spot it","spotting","spot game"]],["quiz",["quiz"]],["ant",["antakshari","antakshri","antakshiri","antaakshari","song game","singing game"]],
+  ["atlas",["atlas","word chain","chain game"]],["tq",["20 questions","twenty questions","20 question"]],["home",["home","menu","main menu","all games"]],
+  ["scores",["scoreboard"]],["settings",["settings"]]];
+
+/* Turns one spoken sentence into a game action. Returns true if it did something. */
+function hear(raw){
+  const t = norm(raw); if(!t) return false;
+  const g = S.g, pid = findPlayer(t);
+  const run = (a, d) => { A[a](d || {}); return true; };
+  const yes = has(t,"yes","got it","got","correct","right","done","spotted","found","saw","good","point","points","sang","sung","said","ok","okay","yay","guessed");
+  const no = has(t,"no","wrong","out","pass","missed","miss","cant","can t","couldn t","couldnt","could not","fail","failed","incorrect");
+  const next = has(t,"next","new","skip","another","change","different");
+
+  if(has(t,"undo","take back","take it back","cancel that")) return run("undo");
+  if(has(t,"repeat","say again","say that again","read again","read it again","what was that","pardon")) return run("repeat");
+  if(has(t,"who is winning","who s winning","whos winning","who is leading","who s leading","score","scores","standings")) return run("read-scores");
+  for(const [s, keys] of NAV) if(S.screen !== s && keys.some(k => has(t, k))) return run("go", {s});
+
+  switch(S.screen){
+    case "spot":
+      if(g.spot.race && pid && !next) return run("race-win", {id:pid});
+      if(has(t,"race","race card")) return run("race-new");
+      if(pid && yes){ g.spot.pid = pid; return run("spot-got"); }
+      if(next){ if(pid) g.spot.pid = pid; return run("spot-new"); }
+      if(yes) return run("spot-got");
+      if(pid) return run("spot-pick", {id:pid});
+      break;
+    case "quiz": {
+      const q = g.quiz; ensureQuiz();
+      if(q.picked !== null) return (next || yes || has(t,"go on","continue")) ? run("quiz-next") : false;
+      if(has(t,"skip","next","another")) return run("quiz-skip");
+      const i = optionFrom(t, q.opts); if(i >= 0) return run("quiz-pick", {i});
+      break; }
+    case "ant": {
+      const L = letterFrom(t); if(L) return run("ant-letter", {l:L});
+      if(has(t,"random")) return run("ant-random");
+      if(has(t,"start","go","ready","begin","timer")) return run("ant-start");
+      if(no) return run("ant-out");
+      if(yes || pid || has(t,"next")) return run("ant-sang");
+      break; }
+    case "atlas": {
+      const a = g.atlas;
+      if(!a.cat){ const i = CAT_WORDS.findIndex(ws => has(t, ...ws)); return i >= 0 ? run("atlas-cat", {i}) : false; }
+      if(a.winner){ if(has(t,"again","play again","yes","same")) return run("atlas-again"); if(has(t,"change","category","new")) return run("atlas-change"); break; }
+      if(has(t,"end round","stop","end")) return run("atlas-change");
+      if(no) return run("atlas-out");
+      if(yes || next || pid) return run("atlas-said");
+      break; }
+    case "tq": {
+      const q = g.tq;
+      if(!q.thinker) return pid ? run("tq-think", {id:pid}) : false;
+      if(q.done) return (next || has(t,"again","round")) ? run("tq-reset") : false;
+      if(has(t,"idea")) return run("tq-idea");
+      if(has(t,"stumped","nobody","no one","give up","gave up")) return run("tq-stumped");
+      if(pid && pid !== q.thinker) return run("tq-guess", {id:pid});
+      if(has(t,"minus","less","take away")) return run("tq-minus");
+      if(next || has(t,"plus","question","asked","add","one more")) return run("tq-plus");
+      break; }
+    case "scores":
+      if(has(t,"end day","end the day","end today","finish","champion")) return run("go", {s:"dayend"});
+      break;
+    case "dayend":
+      if(has(t,"save","confirm","yes","end")){ if(Math.max(...S.players.map(p => today(p.id))) > 0) return run("day-end"); }
+      break;
+  }
+  return false;
+}
+
+/* ---------- Render ---------- */
+function renderStones(bumpId){
+  const sc = S.players.map(p => today(p.id)); const max = Math.max(...sc);
+  $("#stones").innerHTML = S.players.map(p => `
+    <button class="stone ${max>0 && today(p.id)===max ? "lead":""} ${bumpId===p.id?"bump":""}" style="--pc:var(--p${p.c})" data-a="go" data-s="scores" aria-label="${esc(p.name)}: ${today(p.id)} points today">
+      ${boosted(p.id) ? '<span class="boost">2x</span>' : ""}
+      <div class="cap">${esc(p.name)}</div><div class="pts">${today(p.id)}</div><div class="unit">points</div>
+      <div class="bar" style="background:var(--p${p.c})"></div></button>`).join("");
+  $("#leg").textContent = "Day " + S.day + " · " + S.leg;
+  $("#undoBtn").disabled = !S.log.length;
+}
+const pbtns = (action, opts={}) => `<div class="who">${S.players.map(p => `
+  <button class="pbtn ${opts.on===p.id?"on":""} ${opts.out&&opts.out.includes(p.id)?"out":""}" style="--pc:var(--p${p.c})" data-a="${action}" data-id="${p.id}"
+   ${opts.out&&opts.out.includes(p.id)?"disabled":""}><span class="dot"></span>${esc(p.name)}${opts.label?" "+opts.label:""}</button>`).join("")}</div>`;
+const back = (title) => `<div class="head"><button class="back" data-a="go" data-s="home" aria-label="Back to games">‹</button><h2>${title}</h2></div>`;
+
+const screens = {
+  home(){
+    return `
+      <div class="games">
+        <button class="game" data-a="go" data-s="spot"><span class="sign diamond"><span>!</span></span><span><b>Spot It</b><small>Look out of the window. Everyone gets a target at their own level.</small></span></button>
+        <button class="game" data-a="go" data-s="quiz"><span class="sign">?</span><span><b>Quick Quiz</b><small>Take turns. Pick the right answer from the choices. Each person gets their own level.</small></span></button>
+        <button class="game" data-a="go" data-s="ant"><span class="sign circle">♪</span><span><b>Antakshari</b><small>Sing a song starting with the letter. Kippi gets more time.</small></span></button>
+        <button class="game" data-a="go" data-s="atlas"><span class="sign">A</span><span><b>Atlas Chain</b><small>Next word starts with the last letter. Last one standing wins.</small></span></button>
+        <button class="game" data-a="go" data-s="tq"><span class="sign diamond"><span>20</span></span><span><b>20 Questions</b><small>One person thinks of something. Others ask yes or no questions.</small></span></button>
+      </div>
+      <div class="quick">
+        <button class="btn" data-a="go" data-s="settings">Players &amp; settings</button>
+        <button class="btn" data-a="go" data-s="scores">Scoreboard</button>
+      </div>
+      <p class="note"><strong>How to play:</strong> the front passenger holds the phone and reads out loud. Kids look outside, not at the screen. <strong>The driver plays by voice only.</strong> The game reads every challenge aloud. Tap the yellow mic and say things like "Kippi got it" or "Who's winning". The full list is in Players &amp; settings.</p>`;
+  },
+
+  spot(){
+    const g = S.g.spot, [p] = ensureSpot();
+    return `${back("Spot It")}
+      <p class="sub">Pick a player. The game reads their target out loud. Tap when they spot it.</p>
+      ${pbtns("spot-pick", {on:p.id})}
+      <div class="card board">
+        <div class="cardtop"><span class="lvl">${esc(p.name)} · ${LEVELS[p.level].name}</span><button class="say" data-a="repeat">Read again</button></div>
+        <p class="big">${esc(g.cards[p.id])}</p>
+      </div>
+      <div class="row"><button class="btn good" data-a="spot-got">Spotted it! +10</button><button class="btn" data-a="spot-new">New target</button></div>
+      <div class="card">
+        <h3>Race card</h3><p class="sub" style="margin-top:-6px">Everyone hunts the same thing. First to shout it wins 10.</p>
+        ${g.race ? `<p class="big">${esc(g.race)}</p>${pbtns("race-win",{label:"first"})}<button class="btn small" data-a="race-new">Skip this one</button>`
+                 : `<button class="btn go" data-a="race-new">Deal a race card</button>`}
+      </div>`;
+  },
+
+  quiz(){
+    const g = S.g.quiz, p = ensureQuiz(), done = g.picked !== null, ok = done && g.opts[g.picked] === g.q[1];
+    const nx = S.players[(g.turn + 1) % S.players.length];
+    return `${back("Quick Quiz")}
+      <div class="card">
+        <div class="cardtop"><span class="lvl" style="color:var(--p${p.c})">${esc(p.name)}'s question · ${LEVELS[p.level].name}</span><button class="say" data-a="repeat">Read again</button></div>
+        <p class="big">${esc(g.q[0])}</p>
+      </div>
+      <div class="opts">${g.opts.map((o,i) => {
+        const cls = !done ? "" : o === g.q[1] ? "right" : i === g.picked ? "wrong" : "dim";
+        return `<button class="opt ${cls}" data-a="quiz-pick" data-i="${i}" ${done?"disabled":""}><span class="key">${KEYS[i]}</span><span>${esc(o)}</span></button>`; }).join("")}</div>
+      ${done ? `<p class="result ${ok?"good":"bad"}">${ok ? "Correct! +10 for " + esc(p.name) : "Not quite. The answer is " + esc(g.q[1]) + "."}</p>
+        <button class="btn go" data-a="quiz-next">Next: ${esc(nx.name)}'s question</button>`
+             : `<button class="btn small" data-a="quiz-skip">Skip question</button>`}`;
+  },
+
+  ant(){
+    const g = S.g.ant; g.turn %= S.players.length; const p = S.players[g.turn];
+    const L = "ABCDEFGHIJKLMNOPRSTUVWY".split("");
+    return `${back("Antakshari")}
+      <div class="card" style="align-items:center;text-align:center">
+        <span class="lvl" style="color:var(--p${p.c})">${esc(p.name)}'s turn · ${LEVELS[p.level].ant} seconds</span>
+        <p class="sub">Sing a song starting with</p>
+        <p class="bigletter">${g.letter}</p>
+        ${g.running ? timerHTML() : g.up ? `<p class="timeup">Time's up!</p>` : `<button class="btn go" data-a="ant-start" style="width:100%">Start timer</button>`}
+      </div>
+      <div class="row"><button class="btn good" data-a="ant-sang">Sang it! +10</button><button class="btn bad" data-a="ant-out">Couldn't sing</button></div>
+      <div class="card"><h3>Next letter</h3><p class="sub" style="margin-top:-6px">Tap the last letter of the song just sung.</p>
+        <div class="letters">${L.map(x => `<button class="${x===g.letter?"on":""}" data-a="ant-letter" data-l="${x}">${x}</button>`).join("")}</div>
+        <button class="btn small" data-a="ant-random">Random letter</button></div>`;
+  },
+
+  atlas(){
+    const g = S.g.atlas;
+    if(!g.cat) return `${back("Atlas Chain")}
+      <p class="sub">Say a word in the category. The next player's word must start with the last letter of yours. No repeats. Run out of time and you're out.</p>
+      <div class="games">${ATLAS_CATS.map((c,i) => `<button class="game" data-a="atlas-cat" data-i="${i}"><span class="sign">${c.name[0]}</span><span><b>${c.name}</b><small>${c.hint}</small></span></button>`).join("")}</div>
+      <p class="note">Time per turn: ${S.players.map(p => esc(p.name)+" "+LEVELS[p.level].atlas+"s").join(", ")}.</p>`;
+    if(g.winner){ const w = P(g.winner); return `${back("Atlas Chain")}
+      <div class="card champ"><span class="lvl">${esc(g.cat)} round winner</span><p class="big" style="color:var(--p${w.c})">${esc(w.name)}</p><p class="sub">+15 for being last one standing</p></div>
+      <div class="row"><button class="btn go" data-a="atlas-again">Play again</button><button class="btn" data-a="atlas-change">Change category</button></div>`; }
+    const p = P(g.alive[g.turn]);
+    const out = S.players.filter(x => !g.alive.includes(x.id)).map(x => x.id);
+    return `${back("Atlas Chain")}
+      <div class="card">
+        <span class="lvl">${esc(g.cat)} · ${g.alive.length} still in</span>
+        <p class="big" style="color:var(--p${p.c})">${esc(p.name)}'s turn</p>
+        ${g.running ? timerHTML() : g.up ? `<p class="timeup">Time's up!</p>` : ""}
+      </div>
+      <div class="row"><button class="btn good" data-a="atlas-said">Said a word +5</button><button class="btn bad" data-a="atlas-out">${esc(p.name)} is out</button></div>
+      <div class="card"><h3>Players</h3>${pbtns("noop", {on:p.id, out})}</div>
+      <button class="btn small" data-a="atlas-change">End round</button>`;
+  },
+
+  tq(){
+    const g = S.g.tq;
+    if(!g.thinker) return `${back("20 Questions")}
+      <p class="sub">Who is thinking of something? Everyone else asks yes or no questions.</p>${pbtns("tq-think")}
+      <p class="note">Scoring: whoever guesses gets 10. If it took 10 or more questions, the thinker also gets 5. If nobody guesses in 20, the thinker gets 15.</p>`;
+    const t = P(g.thinker);
+    if(g.done) return `${back("20 Questions")}<div class="card champ"><p class="big">${g.done}</p></div><button class="btn go" data-a="tq-reset">New round</button>`;
+    return `${back("20 Questions")}
+      <div class="card"><span class="lvl" style="color:var(--p${t.c})">${esc(t.name)} is thinking</span>
+        ${g.idea ? `<p class="sub">Idea for ${esc(t.name)} (show only them): <strong>${esc(g.idea)}</strong></p>` : `<button class="btn small" data-a="tq-idea">Need an idea?</button>`}
+      </div>
+      <div class="card" style="align-items:center"><span class="lvl">Questions asked</span>
+        <div class="counter"><button class="minus" data-a="tq-minus" aria-label="One less">−</button><span class="n">${g.count}</span><button data-a="tq-plus" aria-label="One more question">+</button></div>
+        <span class="sub">${20 - g.count} left</span></div>
+      <div class="card"><h3>Who guessed it?</h3>${pbtns("tq-guess", {out:[t.id]})}
+        <button class="btn bad" data-a="tq-stumped">Nobody got it. ${esc(t.name)} wins 15</button></div>`;
+  },
+
+  scores(){
+    const rows = [...S.players].sort((a,b) => trip(b.id) - trip(a.id));
+    return `<h2>Scoreboard</h2>
+      <div class="card" style="overflow-x:auto"><table>
+        <thead><tr><th>Player</th><th class="n">Today</th>${S.days.map(d => `<th class="n">Day ${d.n}</th>`).join("")}<th class="n">Trip</th></tr></thead>
+        <tbody>${rows.map(p => `<tr><td><b style="color:var(--p${p.c})">${esc(p.name)}</b></td><td class="n">${today(p.id)}</td>
+          ${S.days.map(d => `<td class="n">${d.scores[p.id]||0}</td>`).join("")}<td class="n"><b>${trip(p.id)}</b></td></tr>`).join("")}</tbody>
+      </table></div>
+      <div class="row"><button class="btn" data-a="read-scores">Read scores aloud</button></div>
+      <button class="btn go" data-a="go" data-s="dayend">End today's drive &amp; crown a champion</button>
+      <div class="card"><h3>Today's points</h3>
+        ${S.log.length ? `<ul class="log">${S.log.slice(-12).reverse().map(l => `<li><span>${esc(P(l.id)?.name||"")} · ${esc(l.label)}</span><b>+${l.pts}</b></li>`).join("")}</ul>` : `<p class="sub">No points yet today. Pick a game to start.</p>`}
+      </div>`;
+  },
+
+  dayend(){
+    const sc = S.players.map(p => today(p.id)); const max = Math.max(...sc);
+    const champs = S.players.filter(p => today(p.id) === max);
+    const tripLead = [...S.players].sort((a,b) => trip(b.id) - trip(a.id))[0];
+    return `<h2>Day ${S.day} Champion</h2>
+      ${max === 0 ? `<p class="sub">Nobody has scored today yet.</p>` : `
+      <div class="champ">${champs.map(p => `<div class="stone" style="--pc:var(--p${p.c})"><div class="cap">${esc(p.name)}</div><div class="pts">${max}</div><div class="unit">points</div><div class="bar" style="background:var(--p${p.c})"></div></div>`).join("")}
+        <p class="sub">${champs.length > 1 ? "A tie! Both are champions today." : "Champion of " + esc(S.leg)}</p>
+        <p class="sub">Leading the whole trip: <strong>${esc(tripLead.name)}</strong> with ${trip(tripLead.id)}</p></div>`}
+      <p class="note">Ending the day saves today's points into the trip total and starts Day ${S.day + 1} at zero.</p>
+      <div class="row"><button class="btn go" data-a="day-end" ${max===0?"disabled":""}>Save Day ${S.day} &amp; start Day ${S.day+1}</button><button class="btn" data-a="go" data-s="scores">Not yet</button></div>`;
+  },
+
+  settings(){
+    return `${back("Players & settings")}
+      <div class="card"><h3>Players</h3>
+        ${S.players.map((p,i) => `<div class="field"><input id="name-${p.id}" data-i="${i}" class="nm" value="${esc(p.name)}" aria-label="Player ${i+1} name" maxlength="12">
+          <select id="lvl-${p.id}" data-i="${i}" class="lv" aria-label="${esc(p.name)} level">${Object.entries(LEVELS).map(([k,v]) => `<option value="${k}" ${p.level===k?"selected":""}>${v.name}</option>`).join("")}</select></div>`).join("")}
+        <p class="sub">Little Explorer: easy targets and questions, most time. Trailblazer: medium. Mountain Guide: hardest, least time.</p>
+      </div>
+      <div class="card"><h3>Trip</h3>
+        <div class="wide"><label for="leg-in" class="sub">Today's route</label><input id="leg-in" value="${esc(S.leg)}" maxlength="30"></div>
+        <label class="toggle"><span><b>Catch-up boost</b><br><span class="sub">Last place earns double once the leader is 30 points ahead</span></span><input type="checkbox" id="opt-catchup" ${S.settings.catchup?"checked":""}></label>
+        <label class="toggle"><span><b>Game talks out loud</b><br><span class="sub">Reads targets, questions, turns and scores</span></span><input type="checkbox" id="opt-talk" ${S.settings.talk?"checked":""}></label>
+        <div class="field"><label for="opt-rate"><b>Talking speed</b></label><select id="opt-rate">${[[0.8,"Slow"],[0.95,"Normal"],[1.1,"Fast"]].map(([v,n]) => `<option value="${v}" ${S.settings.rate==v?"selected":""}>${n}</option>`).join("")}</select></div>
+        <div class="field"><label for="opt-voice"><b>Voice</b></label><select id="opt-voice"><option value="">Automatic (British English)</option>${englishVoices().map(v => `<option value="${esc(v.name)}" ${S.settings.voiceName===v.name?"selected":""}>${esc(v.name.replace(/^(Microsoft|Google) /,""))} (${esc(v.lang)})</option>`).join("")}</select></div>
+        <label class="toggle"><span><b>Timer beep</b></span><input type="checkbox" id="opt-sound" ${S.settings.sound?"checked":""}></label>
+        <label class="toggle"><span><b>Keep screen on</b></span><input type="checkbox" id="opt-awake" ${S.settings.awake?"checked":""}></label>
+      </div>
+      <div class="card"><h3>Voice commands</h3>
+        <p class="sub" style="margin-top:-6px">Tap the yellow mic, then say one command. Needs mobile signal. ${SR ? "" : "<strong>This browser cannot take voice commands.</strong>"}</p>
+        <ul class="cmds">
+          <li><span>"Who's winning"</span><span>Anywhere</span></li>
+          <li><span>"Play quiz" / "Go home"</span><span>Switch games</span></li>
+          <li><span>"Undo" / "Repeat"</span><span>Anywhere</span></li>
+          <li><span>"Kippi got it" / "New target"</span><span>Spot It</span></li>
+          <li><span>"Race card" then "Zubbu"</span><span>Spot It</span></li>
+          <li><span>"A", "B", "C" or the answer itself</span><span>Quiz</span></li>
+          <li><span>"Next" / "Skip"</span><span>Quiz</span></li>
+          <li><span>"Start" / "Sang it" / "Out" / "Letter K"</span><span>Antakshari</span></li>
+          <li><span>"Animals" then "Yes" / "Out"</span><span>Atlas Chain</span></li>
+          <li><span>"Dad" / "Question" / "Zubbu guessed it" / "Stumped"</span><span>20 Questions</span></li>
+        </ul>
+      </div>
+      <div class="card"><h3>Start over</h3>
+        ${S.g.resetAsk ? `<p class="sub">This wipes all days and scores. Sure?</p><div class="row"><button class="btn bad" data-a="reset-yes">Yes, wipe everything</button><button class="btn" data-a="reset-no">Keep scores</button></div>`
+                       : `<button class="btn bad" data-a="reset-ask">Reset the whole trip</button>`}
+      </div>`;
+  }
+};
+
+function render(){
+  if(!screens[S.screen]) S.screen = "home";
+  $("#main").innerHTML = screens[S.screen]();
+  renderStones();
+  paintTimer();
+}
+
+/* ---------- Actions ---------- */
+function ensureSpot(){ const g = S.g.spot, p = P(g.pid) || S.players[0]; g.pid = p.id;
+  if(!g.cards[p.id]) g.cards[p.id] = draw("spot-"+p.level, SPOT[p.level]); return [p, g.cards[p.id]]; }
+function ensureQuiz(){ const g = S.g.quiz; g.turn %= S.players.length; const p = S.players[g.turn];
+  if(!g.q || !Array.isArray(g.q[2])){ g.q = draw("quiz-"+p.level, QUIZ[p.level]); g.opts = null; g.picked = null; }
+  if(!g.opts) g.opts = shuffle([g.q[1], ...g.q[2]]);
+  if(g.picked === undefined) g.picked = null;
+  return p; }
+const KEYS = "ABCD";
+const antPlayer = () => S.players[S.g.ant.turn % S.players.length];
+
+/* What the game says out loud */
+const spotLine = () => { const [p, c] = ensureSpot(); sayLine(p.name + ", spot this. " + c + "."); };
+const quizLine = () => { const p = ensureQuiz(), g = S.g.quiz; sayLine(p.name + ", your question. " + g.q[0] + " ... " + g.opts.map((o,i) => KEYS[i] + ": " + o).join(". ") + "."); };
+const antLine = () => sayLine(antPlayer().name + "'s turn. A song starting with the letter " + S.g.ant.letter + ".");
+function standings(){
+  const r = [...S.players].sort((a,b) => today(b.id) - today(a.id));
+  if(today(r[0].id) === 0) return "Nobody has scored yet today. Let's play!";
+  const tie = today(r[0].id) === today(r[1].id);
+  return r.map(p => p.name + " has " + today(p.id)).join(". ") + ". " + (tie ? "It's a tie at the top!" : r[0].name + " is in the lead!");
+}
+function champLine(){
+  const max = Math.max(...S.players.map(p => today(p.id))); if(max === 0) return "Nobody has scored today yet.";
+  const ch = S.players.filter(p => today(p.id) === max).map(p => p.name);
+  return "Day " + S.day + " champion" + (ch.length > 1 ? "s are " + ch.join(" and ") : " is " + ch[0]) + ", with " + max + " points!";
+}
+function announce(s){
+  if(s === "spot") spotLine();
+  else if(s === "quiz") quizLine();
+  else if(s === "ant") { antLine(); say("Tap start when ready."); }
+  else if(s === "atlas" && !S.g.atlas.cat) say("Atlas chain. Pick a category.");
+  else if(s === "tq" && !S.g.tq.thinker) say("Twenty questions. Who is thinking of something?");
+  else if(s === "dayend") say(champLine());
+}
+
+function antStart(){ const g = S.g.ant, p = antPlayer();
+  g.running = true; g.up = false; T = {left:LEVELS[p.level].ant, total:LEVELS[p.level].ant};
+  say(p.name + ", the letter " + g.letter + ". Go!");
+  startTimer(T.total, () => { g.running = false; g.up = true; render(); }); }
+function atlasTurn(){ const g = S.g.atlas, p = P(g.alive[g.turn]);
+  g.running = true; g.up = false; T = {left:LEVELS[p.level].atlas, total:LEVELS[p.level].atlas};
+  say(p.name + "'s turn");
+  startTimer(T.total, () => { g.running = false; g.up = true; render(); }); }
+function atlasStart(){ const g = S.g.atlas; g.alive = S.players.map(p => p.id); g.turn = 0; g.winner = null; atlasTurn(); }
+
+const A = {
+  go(d){ stopTimer(); S.g.ant.running = false; S.g.atlas.running = false; S.g.resetAsk = false; S.screen = d.s; window.scrollTo(0,0); announce(d.s); },
+  undo(){ const l = S.log.pop(); if(!l) return; S.today[l.id] = today(l.id) - l.pts; toast("Undid " + l.pts + " for " + (P(l.id)?.name||"")); say("Undone. " + l.pts + " points taken back from " + (P(l.id)?.name||"")); },
+  repeat(){ if(lastLine) say(lastLine); },
+  "read-scores"(){ say(standings()); },
+  mic(){ listen(); },
+  noop(){},
+
+  "spot-pick"(d){ S.g.spot.pid = d.id; spotLine(); },
+  "spot-new"(){ const p = P(S.g.spot.pid); S.g.spot.cards[p.id] = draw("spot-"+p.level, SPOT[p.level]); spotLine(); },
+  "spot-got"(){ const p = P(S.g.spot.pid); award(p.id, 10, "Spot It"); S.g.spot.cards[p.id] = draw("spot-"+p.level, SPOT[p.level]); spotLine(); },
+  "race-new"(){ S.g.spot.race = draw("race", RACE); sayLine("Race card! Everyone look for this. " + S.g.spot.race + "."); },
+  "race-win"(d){ award(d.id, 10, "Race card"); S.g.spot.race = null; },
+
+  "quiz-pick"(d){ const g = S.g.quiz, p = ensureQuiz(); if(g.picked !== null) return; const i = +d.i; if(!(i in g.opts)) return;
+    g.picked = i;
+    if(g.opts[i] === g.q[1]){ say("Correct!"); award(p.id, 10, "Quiz"); }
+    else sayLine("Not quite. The answer is " + KEYS[g.opts.indexOf(g.q[1])] + ", " + g.q[1] + "."); },
+  "quiz-skip"(){ const g = S.g.quiz; g.q = null; g.opts = null; g.picked = null; quizLine(); },
+  "quiz-next"(){ const g = S.g.quiz; g.turn = (g.turn + 1) % S.players.length; g.q = null; g.opts = null; g.picked = null; quizLine(); },
+
+  "ant-start"(){ antStart(); },
+  "ant-sang"(){ const g = S.g.ant; stopTimer(); award(antPlayer().id, 10, "Antakshari"); g.turn++; g.running = false; g.up = false; say(antPlayer().name + " is next. Set the letter."); },
+  "ant-out"(){ const g = S.g.ant; stopTimer(); g.turn++; g.running = false; g.up = false; say("No song this time. " + antPlayer().name + " is next."); },
+  "ant-letter"(d){ S.g.ant.letter = d.l; sayLine("Next letter: " + d.l + ". " + antPlayer().name + "'s turn."); },
+  "ant-random"(){ const L = "ABCDEGHJKLMNPRSTY"; S.g.ant.letter = L[Math.floor(Math.random()*L.length)]; antLine(); },
+
+  "atlas-cat"(d){ S.g.atlas.cat = ATLAS_CATS[+d.i].name; say("Category: " + S.g.atlas.cat + "."); atlasStart(); },
+  "atlas-said"(){ const g = S.g.atlas; award(g.alive[g.turn], 5, "Atlas"); g.turn = (g.turn + 1) % g.alive.length; atlasTurn(); },
+  "atlas-out"(){ const g = S.g.atlas; stopTimer(); say(P(g.alive[g.turn]).name + " is out."); g.alive.splice(g.turn, 1);
+    if(g.alive.length === 1){ g.running = false; g.up = false; g.winner = g.alive[0]; say(P(g.winner).name + " wins the round!"); award(g.winner, 15, "Atlas winner"); return; }
+    g.turn %= g.alive.length; atlasTurn(); },
+  "atlas-again"(){ atlasStart(); },
+  "atlas-change"(){ stopTimer(); Object.assign(S.g.atlas, {cat:null, alive:[], turn:0, running:false, up:false, winner:null}); say("Pick a category."); },
+
+  "tq-think"(d){ Object.assign(S.g.tq, {thinker:d.id, count:0, idea:null, done:null}); say(P(d.id).name + " is thinking of something. Everyone else, ask yes or no questions."); },
+  "tq-idea"(){ const t = P(S.g.tq.thinker); S.g.tq.idea = draw("idea-"+t.level, IDEAS[t.level]); },
+  "tq-plus"(){ const g = S.g.tq; if(g.count < 20) g.count++;
+    if(g.count === 20) say("That's twenty questions! Did anyone guess?");
+    else if([10,15,18,19].includes(g.count)) say("Question " + g.count + ". " + (20 - g.count) + " left."); },
+  "tq-minus"(){ const g = S.g.tq; if(g.count > 0) g.count--; },
+  "tq-guess"(d){ const g = S.g.tq, t = P(g.thinker); say(P(d.id).name + " guessed it in " + g.count + (g.count === 1 ? " question!" : " questions!"));
+    award(d.id, 10, "20 Questions");
+    if(g.count >= 10) award(t.id, 5, "20Q tough one");
+    g.done = esc(P(d.id).name) + " guessed it in " + g.count + (g.count === 1 ? " question!" : " questions!"); },
+  "tq-stumped"(){ const g = S.g.tq, t = P(g.thinker); say(t.name + " stumped everyone!"); award(t.id, 15, "20Q stumped all"); g.done = esc(t.name) + " stumped everyone!"; },
+  "tq-reset"(){ Object.assign(S.g.tq, {thinker:null, count:0, idea:null, done:null}); say("Who is thinking next?"); },
+
+  "day-end"(){ S.days.push({n:S.day, scores:{...S.today}}); S.today = {}; S.log = []; S.day++; S.screen = "scores"; toast("Day saved. Good night!"); say("Day saved. Well played everyone. Good night!"); },
+  "reset-ask"(){ S.g.resetAsk = true; },
+  "reset-no"(){ S.g.resetAsk = false; },
+  "reset-yes"(){ const keep = {players:S.players, settings:S.settings, leg:S.leg}; S = Object.assign(fresh(), keep); S.screen = "home"; toast("Trip reset"); }
+};
+
+document.addEventListener("click", e => {
+  wake();
+  const b = e.target.closest("[data-a]"); if(!b || b.disabled) return;
+  const f = A[b.dataset.a]; if(!f) return;
+  hush();
+  f(b.dataset); save(); render();
+});
+document.addEventListener("change", e => {
+  const t = e.target;
+  if(t.classList.contains("nm")){ S.players[+t.dataset.i].name = t.value.trim() || ("Player " + (+t.dataset.i + 1)); }
+  else if(t.classList.contains("lv")){ S.players[+t.dataset.i].level = t.value; }
+  else if(t.id === "leg-in"){ S.leg = t.value.trim() || "Road trip"; }
+  else if(t.id === "opt-catchup"){ S.settings.catchup = t.checked; }
+  else if(t.id === "opt-sound"){ S.settings.sound = t.checked; }
+  else if(t.id === "opt-talk"){ S.settings.talk = t.checked; if(t.checked) say("Okay, I will read everything out loud."); else hush(); }
+  else if(t.id === "opt-voice"){ S.settings.voiceName = t.value; pickVoice(); hush(); say("Hello Kippi and Zubbu. This is my voice."); }
+  else if(t.id === "opt-rate"){ S.settings.rate = +t.value; hush(); say("This is how fast I will talk."); }
+  else if(t.id === "opt-awake"){ S.settings.awake = t.checked; if(!t.checked && lock){ lock.release(); lock = null; } }
+  else return;
+  save(); renderStones();
+});
+
+/* ---------- Boot ---------- */
+function start(data){
+  if(data && data.players) S = revive(data); else load();
+  S.g.ant.running = false; S.g.atlas.running = false;
+  render();
+}
+window.claude?.hot?.snapshot?.(() => S);
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+</script>
+
+<script>
+if("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+</script>
+</body>
+</html>
