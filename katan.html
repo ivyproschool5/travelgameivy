@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b5394">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>Agrawal Katan</title>
+<title>AgrawalKatan</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
 <style>
@@ -109,7 +109,7 @@ svg text{font-family:var(--display);pointer-events:none}
 </head>
 <body>
 <header>
-  <h1>Agrawal Katan</h1>
+  <h1>AgrawalKatan</h1>
   <div class="chips" id="chips"></div>
   <button class="hbtn" id="talkBtn" data-a="talk">Voice on</button>
   <button class="hbtn" data-a="menu">New game</button>
@@ -130,7 +130,7 @@ const RI = {
 };
 const T_RES = {forest:"lumber", hills:"brick", pasture:"wool", fields:"grain", mountains:"ore", desert:null};
 const T_FILL = {forest:"#2e7d4f", hills:"#c46a3e", pasture:"#93c25a", fields:"#e9bd3a", mountains:"#8890a0", desert:"#e6d4a0"};
-const COST = {road:{brick:1,lumber:1}, settlement:{brick:1,lumber:1,wool:1,grain:1}, city:{ore:3,grain:2}};
+const COST = {road:{brick:1,lumber:1}, settlement:{brick:1,lumber:1,wool:1,grain:1}, city:{ore:3,grain:2}, dev:{ore:1,wool:1,grain:1}};
 const LIMIT = {road:15, settlement:5, city:4};
 const WIN = 10, BANK = 19;
 const PCOL = {mom:"#c03e68", dad:"#1f4fb5", kippi:"#e0701c", zubbu:"#7048c8"};
@@ -171,8 +171,14 @@ const total = r => RES.reduce((s, k) => s + r[k], 0);
 const roll1 = () => 1 + Math.floor(Math.random()*6);
 
 /* ---------- Game state ---------- */
-const KEY = "agrawal-katan-v1";
-let G = null, UI = {mode:null, give:null, get:null, disc:zero()};
+const KEY = "agrawalkatan-v2";
+let G = null, UI = {mode:null, give:null, get:null, disc:zero(), pt:{give:zero(), get:zero(), to:null}};
+const DEV = ["knight","road","plenty","mono","vp"];
+const DI = {knight:{label:"Knight", note:"Move the robber and take a card. Counts towards Largest Army."},
+  road:{label:"Road Building", note:"Build 2 roads for free."}, plenty:{label:"Year of Plenty", note:"Take any 2 cards from the bank."},
+  mono:{label:"Monopoly", note:"Name a resource. Everyone gives you all of theirs."}, vp:{label:"Victory Point", note:"1 point. Kept hidden until you win."}};
+const zeroDev = () => ({knight:0, road:0, plenty:0, mono:0, vp:0});
+const devTotal = d => DEV.reduce((n, k) => n + d[k], 0);
 
 function newBoard(){
   for(let t = 0; t < 5000; t++){
@@ -188,11 +194,13 @@ function newBoard(){
 function newGame(players){
   const b = newBoard();
   const order = [...players.keys()];
-  G = {v:1, players:players.map(p => ({id:p.id, name:p.name, c:p.c, res:zero()})),
+  G = {v:2, players:players.map(p => ({id:p.id, name:p.name, c:p.c, res:zero(), dev:zeroDev(), fresh:zeroDev(), knights:0})),
+    deck:shuffle([...Array(14).fill("knight"), ...Array(5).fill("vp"), "road","road","plenty","plenty","mono","mono"]),
+    road:null, army:null, played:false, sub:null, ret:null,
     hexes:b.hexes, robber:b.robber, ports:b.ports, b:{}, rd:{}, bank:{lumber:BANK,brick:BANK,wool:BANK,grain:BANK,ore:BANK},
     phase:"setup", setup:{order:[...order, ...order.slice().reverse()], i:0, step:"settlement", lastV:null},
     turn:0, dice:null, discardQ:[], victims:[], winner:null, log:[], undo:[], rolls:0};
-  UI = {mode:null, give:null, get:null, disc:zero()};
+  UI = {mode:null, give:null, get:null, disc:zero(), pt:{give:zero(), get:zero(), to:null}};
   log("New game. " + G.players[0].name + " places first.");
 }
 const cur = () => G.phase === "setup" ? G.setup.order[G.setup.i] : G.turn;
@@ -203,7 +211,27 @@ function snap(){ const c = JSON.parse(JSON.stringify(G)); c.undo = []; G.undo.pu
 /* ---------- Rules ---------- */
 const used = (pi, kind) => kind === "road" ? Object.values(G.rd).filter(p => p === pi).length
   : Object.values(G.b).filter(x => x.p === pi && (kind === "city" ? x.city : !x.city)).length;
-const points = pi => Object.values(G.b).reduce((s, x) => s + (x.p === pi ? (x.city ? 2 : 1) : 0), 0);
+const pub = pi => Object.values(G.b).reduce((s, x) => s + (x.p === pi ? (x.city ? 2 : 1) : 0), 0) + (G.road === pi ? 2 : 0) + (G.army === pi ? 2 : 0);
+const points = pi => pub(pi) + P(pi).dev.vp;
+/* Longest Road: longest trail of a player's roads, not passing through an opponent's building */
+function longest(pi){
+  let best = 0;
+  const dfs = (v, seen, len) => { if(len > best) best = len; const bd = G.b[v]; if(len > 0 && bd && bd.p !== pi) return;
+    for(const e of V[v].edges){ if(G.rd[e] !== pi || seen.has(e)) continue; seen.add(e); dfs(E[e].a === v ? E[e].b : E[e].a, seen, len + 1); seen.delete(e); } };
+  Object.keys(G.rd).forEach(e => { if(G.rd[e] === pi){ dfs(E[e].a, new Set(), 0); dfs(E[e].b, new Set(), 0); } });
+  return best;
+}
+function updateRoad(){
+  const lens = G.players.map((_, i) => longest(i)), max = Math.max(...lens), h = G.road;
+  if(h !== null && lens[h] >= 5 && lens[h] === max) return;
+  const top = lens.map((l, i) => l === max ? i : -1).filter(i => i >= 0);
+  const next = max >= 5 && top.length === 1 ? top[0] : null;
+  if(next !== h){ G.road = next; if(next !== null){ log(P(next).name + " takes Longest Road (" + max + ")."); say(P(next).name + " takes the longest road!"); } else if(h !== null) log("Nobody holds Longest Road now."); }
+}
+function updateArmy(){
+  const pi = cur(), k = P(pi).knights, h = G.army;
+  if(k >= 3 && (h === null || (h !== pi && k > P(h).knights))){ G.army = pi; log(P(pi).name + " takes Largest Army (" + k + " knights)."); say(P(pi).name + " takes the largest army!"); }
+}
 const afford = (pi, cost) => Object.entries(cost).every(([r, n]) => P(pi).res[r] >= n);
 function pay(pi, cost){ Object.entries(cost).forEach(([r, n]) => { P(pi).res[r] -= n; G.bank[r] += n; }); }
 const nearBuilding = v => V[v].adj.some(u => G.b[u] !== undefined);
@@ -234,14 +262,16 @@ function targets(){
     else E.forEach((_, e) => canRoad(pi, e) && out.e.push(e));
   } else if(G.phase === "robber") HEX.forEach((_, h) => h !== G.robber && out.h.push(h));
   else if(G.phase === "main"){
-    if(UI.mode === "road") E.forEach((_, e) => canRoad(pi, e) && out.e.push(e));
+    if(UI.mode === "road" || (G.sub && G.sub.type === "roads")) E.forEach((_, e) => canRoad(pi, e) && out.e.push(e));
     if(UI.mode === "settlement") V.forEach((_, v) => canSettle(pi, v) && out.v.push(v));
     if(UI.mode === "city") V.forEach((_, v) => canCity(pi, v) && out.v.push(v));
   }
   return out;
 }
 function canBuild(kind){
-  const pi = cur(); if(G.phase !== "main" || !afford(pi, COST[kind]) || used(pi, kind) >= LIMIT[kind]) return false;
+  const pi = cur(); if(G.phase !== "main" || G.sub) return false;
+  if(kind === "dev") return afford(pi, COST.dev) && G.deck.length > 0;
+  if(!afford(pi, COST[kind]) || used(pi, kind) >= LIMIT[kind]) return false;
   if(kind === "road") return E.some((_, e) => canRoad(pi, e));
   if(kind === "settlement") return V.some((_, v) => canSettle(pi, v));
   return V.some((_, v) => canCity(pi, v));
@@ -261,7 +291,7 @@ function produce(n){
   return gain;
 }
 function checkWin(){ const pi = cur(); if(points(pi) >= WIN){ G.phase = "over"; G.winner = pi; UI.mode = null;
-  log(P(pi).name + " wins with " + points(pi) + " points!"); say(P(pi).name + " wins! Well played everyone."); } }
+  log(P(pi).name + " wins with " + points(pi) + " points" + (P(pi).dev.vp ? ", including " + P(pi).dev.vp + " hidden Victory Point" + (P(pi).dev.vp > 1 ? "s" : "") : "") + "!"); say(P(pi).name + " wins! Well played everyone."); } }
 function stealFrom(vi){
   const pool = []; RES.forEach(r => { for(let i = 0; i < P(vi).res[r]; i++) pool.push(r); });
   if(!pool.length) return;
@@ -272,8 +302,8 @@ function stealFrom(vi){
 function afterRobber(){
   const pi = cur();
   const vs = [...new Set(HEX[G.robber].v.map(v => G.b[v]).filter(Boolean).map(b => b.p))].filter(p => p !== pi && total(P(p).res) > 0);
-  if(vs.length === 0){ G.phase = "main"; }
-  else if(vs.length === 1){ stealFrom(vs[0]); G.phase = "main"; }
+  if(vs.length === 0){ G.phase = G.ret || "main"; G.ret = null; }
+  else if(vs.length === 1){ stealFrom(vs[0]); G.phase = G.ret || "main"; G.ret = null; }
   else { G.victims = vs; G.phase = "steal"; }
 }
 
@@ -296,11 +326,14 @@ const ACT = {
     }
     if(G.phase === "robber"){ if(id === G.robber) return; G.robber = id; log(P(pi).name + " moved the robber."); afterRobber(); return; }
     if(G.phase !== "main") return;
+    if(kind === "road" && G.sub && G.sub.type === "roads"){ if(!canRoad(pi, id) || used(pi, "road") >= LIMIT.road) return; snap(); G.rd[id] = pi; log(P(pi).name + " built a free road.");
+      if(--G.sub.left <= 0 || used(pi, "road") >= LIMIT.road || !E.some((_, e) => canRoad(pi, e))) G.sub = null; updateRoad(); checkWin(); return; }
     if(kind === "road" && canRoad(pi, id) && afford(pi, COST.road) && used(pi, "road") < LIMIT.road){ snap(); pay(pi, COST.road); G.rd[id] = pi; log(P(pi).name + " built a road."); }
     else if(kind === "settlement" && canSettle(pi, id) && afford(pi, COST.settlement) && used(pi, "settlement") < LIMIT.settlement){ snap(); pay(pi, COST.settlement); G.b[id] = {p:pi}; log(P(pi).name + " built a settlement."); say(P(pi).name + " built a settlement."); }
     else if(kind === "city" && canCity(pi, id) && afford(pi, COST.city) && used(pi, "city") < LIMIT.city){ snap(); pay(pi, COST.city); G.b[id].city = true; log(P(pi).name + " built a city."); say(P(pi).name + " built a city!"); }
     else return;
     if(!canBuild(kind)) UI.mode = null;
+    if(kind !== "city") updateRoad();
     checkWin();
   },
   roll(){
@@ -328,14 +361,40 @@ const ACT = {
     G.discardQ.shift(); UI.disc = zero();
     if(!G.discardQ.length){ G.phase = "robber"; say(P(cur()).name + ", move the robber."); }
   },
-  steal(vi){ if(G.phase !== "steal" || !G.victims.includes(vi)) return; stealFrom(vi); G.victims = []; G.phase = "main"; },
+  steal(vi){ if(G.phase !== "steal" || !G.victims.includes(vi)) return; stealFrom(vi); G.victims = []; G.phase = G.ret || "main"; G.ret = null; },
+  buy(){ const pi = cur(); if(!canBuild("dev")) return; snap(); pay(pi, COST.dev); const c = G.deck.pop(); P(pi).dev[c]++; P(pi).fresh[c]++;
+    log(P(pi).name + " bought a development card."); if(c === "vp") checkWin(); },
+  play(t){
+    const pi = cur(), p = P(pi);
+    if(G.played || t === "vp" || G.sub || p.dev[t] - p.fresh[t] < 1) return;
+    if(!(G.phase === "main" || (G.phase === "roll" && t === "knight"))) return;
+    snap(); p.dev[t]--; G.played = true; log(p.name + " played " + DI[t].label + ".");
+    if(t === "knight"){ p.knights++; updateArmy(); G.ret = G.phase; G.phase = "robber"; say(p.name + " played a knight. Move the robber."); checkWin(); }
+    else if(t === "road"){ G.sub = {type:"roads", left:2}; if(!E.some((_, e) => canRoad(pi, e)) || used(pi, "road") >= LIMIT.road) G.sub = null; }
+    else if(t === "plenty") G.sub = {type:"plenty", left:2};
+    else if(t === "mono") G.sub = {type:"mono"};
+  },
+  pick(r){
+    const pi = cur(); if(!G.sub) return;
+    if(G.sub.type === "plenty"){ if(G.bank[r] < 1) return; G.bank[r]--; P(pi).res[r]++; if(--G.sub.left <= 0 || RES.every(x => G.bank[x] < 1)) G.sub = null; }
+    else if(G.sub.type === "mono"){ let n = 0; G.players.forEach((q, i) => { if(i !== pi){ n += q.res[r]; P(pi).res[r] += q.res[r]; q.res[r] = 0; } });
+      log(P(pi).name + " took all the " + RI[r].label.toLowerCase() + ": " + n + " cards."); say(P(pi).name + " took " + n + " " + RI[r].label.toLowerCase()); G.sub = null; }
+  },
+  skipSub(){ if(G.sub && G.sub.type === "roads") G.sub = null; },
+  ptrade(to, give, get){
+    const pi = cur();
+    if(G.phase !== "main" || G.sub || to === pi || !P(to) || !total(give) || !total(get)) return false;
+    if(RES.some(r => give[r] > P(pi).res[r] || get[r] > P(to).res[r] || (give[r] && get[r]))) return false;
+    snap(); RES.forEach(r => { P(pi).res[r] += get[r] - give[r]; P(to).res[r] += give[r] - get[r]; });
+    log(P(pi).name + " traded with " + P(to).name + "."); return true;
+  },
   trade(give, get){
     const pi = cur(), rate = portRate(pi, give);
     if(G.phase !== "main" || give === get || P(pi).res[give] < rate || G.bank[get] < 1) return;
     snap(); P(pi).res[give] -= rate; G.bank[give] += rate; P(pi).res[get]++; G.bank[get]--;
     log(P(pi).name + " traded " + rate + " " + RI[give].label.toLowerCase() + " for 1 " + RI[get].label.toLowerCase() + ".");
   },
-  end(){ if(G.phase !== "main") return; G.turn = (G.turn + 1) % G.players.length; G.phase = "roll"; G.dice = null; G.undo = []; UI.mode = null;
+  end(){ if(G.phase !== "main" || G.sub) return; P(G.turn).fresh = zeroDev(); G.played = false; G.turn = (G.turn + 1) % G.players.length; G.phase = "roll"; G.dice = null; G.undo = []; UI.mode = null;
     say(P(G.turn).name + "'s turn. Roll the dice."); },
   undo(){ const s = G.undo.pop(); if(!s) return; const keep = G.undo; G = JSON.parse(s); G.undo = keep; UI.mode = null; }
 };
@@ -351,7 +410,7 @@ function say(t){ if(!TTS || !talk || typeof SpeechSynthesisUtterance === "undefi
 
 /* ---------- Saving ---------- */
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify({G, talk})); }catch(e){} }
-function load(){ try{ const d = JSON.parse(localStorage.getItem(KEY)); if(d){ talk = d.talk !== false; if(d.G && d.G.v === 1) G = d.G; } }catch(e){} }
+function load(){ try{ const d = JSON.parse(localStorage.getItem(KEY)); if(d){ talk = d.talk !== false; if(d.G && d.G.v === 2) G = d.G; } }catch(e){} }
 function rallyPlayers(){
   try{ const d = JSON.parse(localStorage.getItem("himachal-rally-v1")); if(d && d.players) return d.players.map((p, i) => ({id:p.id, name:p.name, c:PCOL[p.id] || SPARE[i % 4]})); }catch(e){}
   return [{id:"mom",name:"Mom"},{id:"dad",name:"Dad"},{id:"kippi",name:"Kippi"},{id:"zubbu",name:"Zubbu"}].map(p => ({...p, c:PCOL[p.id]}));
@@ -359,7 +418,7 @@ function rallyPlayers(){
 function sendToRally(pi){
   try{ const d = JSON.parse(localStorage.getItem("himachal-rally-v1")); const id = P(pi).id;
     if(!d || !d.players || !d.players.some(p => p.id === id)) return false;
-    d.today = d.today || {}; d.today[id] = (d.today[id] || 0) + 25; d.log = d.log || []; d.log.push({id, pts:25, label:"Agrawal Katan win"});
+    d.today = d.today || {}; d.today[id] = (d.today[id] || 0) + 25; d.log = d.log || []; d.log.push({id, pts:25, label:"AgrawalKatan win"});
     localStorage.setItem("himachal-rally-v1", JSON.stringify(d)); return true; }catch(e){ return false; }
 }
 
@@ -426,11 +485,25 @@ function panel(){
   } else if(G.phase === "over"){
     h += `<h2>${esc(P(G.winner).name)} wins!</h2><p>${points(G.winner)} points after ${G.rolls} rolls.</p>`;
   } else {
-    h += `<h2>${esc(p.name)}'s turn</h2><p>${points(pi)} of ${WIN} points</p>`;
+    h += `<h2>${esc(p.name)}'s turn</h2><p>${points(pi)} of ${WIN} points${p.dev.vp ? " (" + p.dev.vp + " hidden)" : ""}</p>`;
   }
   h += `</div>`;
 
-  if(G.phase === "roll") h += `<button class="btn amber" style="min-height:80px;font-size:1.4rem" data-a="roll">Roll the dice</button>`;
+  if(G.phase === "main" && UI.pt.to !== null && UI.pt.to !== undefined && P(UI.pt.to)){
+    const pt = UI.pt, q = P(pt.to), list = o => RES.filter(r => o[r]).map(r => o[r] + " " + RI[r].label.toLowerCase()).join(", ");
+    const okT = RES.every(r => pt.get[r] <= q.res[r]);
+    return h + `<div class="card turn" style="--pc:${q.c}"><h2>${esc(q.name)}, do you accept?</h2><p>${esc(p.name)} gives you ${list(pt.give)}.<br>You give ${esc(p.name)} ${list(pt.get)}.</p>
+      ${okT ? "" : `<p>${esc(q.name)} does not have those cards.</p>`}
+      <div class="row"><button class="btn" data-a="pt-no">No thanks</button><button class="btn amber" data-a="pt-yes" ${okT ? "" : "disabled"}>Accept</button></div></div>
+      <div class="card"><h3>${esc(q.name)}'s cards</h3>${resTiles(q.res)}</div>`;
+  }
+  if(G.phase === "roll") h += `<button class="btn amber" style="min-height:80px;font-size:1.4rem" data-a="roll">Roll the dice</button>
+    ${p.dev.knight - p.fresh.knight > 0 && !G.played ? `<button class="btn" data-a="play" data-t="knight">Play a Knight before rolling</button>` : ""}`;
+  if(G.phase === "main" && G.sub){
+    if(G.sub.type === "roads") h += `<div class="card"><h3>Road Building: ${G.sub.left} free road${G.sub.left > 1 ? "s" : ""} left</h3><p class="sub">Tap a glowing line on the board.</p><button class="btn" data-a="skipSub">Stop placing free roads</button></div>`;
+    if(G.sub.type === "plenty") h += `<div class="card"><h3>Year of Plenty: pick ${G.sub.left} more</h3>${resTiles(G.bank, {action:"pick", disabled:r => G.bank[r] < 1})}<p class="sub">Numbers show what the bank has left.</p></div>`;
+    if(G.sub.type === "mono") h += `<div class="card"><h3>Monopoly: which resource?</h3>${resTiles(Object.fromEntries(RES.map(r => [r, G.players.reduce((s, q, i) => s + (i === pi ? 0 : q.res[r]), 0)])), {action:"pick"})}<p class="sub">Numbers show how many the others hold together.</p></div>`;
+  }
   if(G.dice && G.phase !== "roll" && G.phase !== "setup") h += `<div class="card"><div class="dice"><div class="die">${G.dice[0]}</div><div class="die">${G.dice[1]}</div><span class="sum">= ${G.dice[0] + G.dice[1]}</span></div></div>`;
 
   if(G.phase === "discard"){
@@ -451,14 +524,29 @@ function panel(){
         ${B("road", "Road", (LIMIT.road - used(pi, "road")) + " left")}
         ${B("settlement", "Settlement", "1 point · " + (LIMIT.settlement - used(pi, "settlement")) + " left")}
         ${B("city", "City", "2 points · " + (LIMIT.city - used(pi, "city")) + " left")}
-        <button class="btn build" disabled><b>Development card</b>${costPips({ore:1,wool:1,grain:1})}<span class="sub">Coming next update</span></button>
+        <button class="btn build" data-a="buy" ${canBuild("dev") ? "" : "disabled"}><b>Development card</b>${costPips(COST.dev)}<span class="sub">${G.deck.length} left in the deck</span></button>
       </div>${UI.mode ? `<p class="sub">Tap a glowing spot on the board, or tap the button again to cancel.</p>` : ""}</div>`;
     const give = UI.give, rate = give ? portRate(pi, give) : null;
     h += `<div class="card"><h3>Trade with the bank</h3><p class="sub">Give (number = how many you need)</p>
       ${resTiles(Object.fromEntries(RES.map(r => [r, portRate(pi, r)])), {action:"give", sel:give, disabled:r => p.res[r] < portRate(pi, r)})}
       <p class="sub">Get 1</p>${resTiles(Object.fromEntries(RES.map(r => [r, G.bank[r]])), {action:"get", sel:UI.get, disabled:r => r === give || G.bank[r] < 1})}
       <button class="btn" data-a="trade" ${give && UI.get && give !== UI.get && p.res[give] >= rate ? "" : "disabled"}>${give && UI.get ? `Trade ${rate} ${RI[give].label} for 1 ${RI[UI.get].label}` : "Pick what to give and what to get"}</button></div>`;
-    h += `<div class="row"><button class="btn" data-a="undo" ${G.undo.length ? "" : "disabled"}>Undo</button><button class="btn go" data-a="end">End turn</button></div>`;
+    const owned = DEV.filter(t => p.dev[t] > 0);
+    h += `<div class="card"><h3>${esc(p.name)}'s development cards</h3>${owned.length ? owned.map(t => {
+        const ready = p.dev[t] - p.fresh[t], canPlay = t !== "vp" && ready > 0 && !G.played && !G.sub;
+        return `<div class="counter"><span><b>${DI[t].label} × ${p.dev[t]}</b><br><span class="sub">${t === "vp" ? DI[t].note : ready < 1 ? "Bought this turn. Play it from your next turn." : G.played ? "You have already played a card this turn." : DI[t].note}</span></span>
+          ${t === "vp" ? "" : `<button class="btn" style="min-height:44px;flex:none" data-a="play" data-t="${t}" ${canPlay ? "" : "disabled"}>Play</button>`}</div>`; }).join("") : `<p class="sub">None yet. Buy one for ore + wool + grain.</p>`}</div>`;
+    const pt = UI.pt, others = G.players.map((q, i) => i).filter(i => i !== pi);
+    {
+      const row = (side, label) => `<p class="sub">${label}</p><div class="res">${RES.map(r => `<div class="rc" style="--rc:${RI[r].c};min-height:auto;padding:6px 2px">
+          <b>${pt[side][r]}</b><span>${RI[r].label}</span><span style="display:flex;gap:4px;margin-top:4px">
+          <button class="mini" style="width:30px;height:30px" data-a="pt-" data-s="${side}" data-r="${r}" ${pt[side][r] ? "" : "disabled"}>−</button>
+          <button class="mini" style="width:30px;height:30px" data-a="pt+" data-s="${side}" data-r="${r}" ${side === "give" && pt.give[r] >= p.res[r] ? "disabled" : ""}>+</button></span></div>`).join("")}</div>`;
+      const ready = total(pt.give) && total(pt.get) && RES.every(r => !(pt.give[r] && pt.get[r]));
+      h += `<div class="card"><h3>Trade with a player</h3>${row("give", "You give")}${row("get", "You want")}
+        <div class="row">${others.map(i => `<button class="btn" style="border:3px solid ${P(i).c}" data-a="pt-ask" data-p="${i}" ${ready ? "" : "disabled"}>Ask ${esc(P(i).name)}</button>`).join("")}</div></div>`;
+    }
+    h += `<div class="row"><button class="btn" data-a="undo" ${G.undo.length ? "" : "disabled"}>Undo</button><button class="btn go" data-a="end" ${G.sub ? "disabled" : ""}>End turn</button></div>`;
   }
   if(G.phase === "setup") h += `<div class="row"><button class="btn" data-a="undo" ${G.undo.length ? "" : "disabled"}>Undo</button></div>`;
   if(G.phase === "over"){
@@ -466,11 +554,13 @@ function panel(){
       ${G.sent ? `<p class="sub">25 points added to ${esc(P(G.winner).name)} on the Road Rally scoreboard.</p>` : `<button class="btn amber" data-a="rally">Add 25 points to ${esc(P(G.winner).name)} in Road Rally</button>`}
       <button class="btn go" data-a="menu">New game</button>`;
   }
+  if(G.phase !== "setup") h += `<div class="card"><h3>Bonus cards (2 points each)</h3><p class="sub">Longest Road: ${G.road !== null ? `<b style="color:${P(G.road).c}">${esc(P(G.road).name)}</b> (${longest(G.road)} roads)` : "nobody yet (needs 5 in a row)"}<br>
+    Largest Army: ${G.army !== null ? `<b style="color:${P(G.army).c}">${esc(P(G.army).name)}</b> (${P(G.army).knights} knights)` : "nobody yet (needs 3 knights)"}</p></div>`;
   h += `<div class="card"><h3>What happened</h3><ul class="log">${G.log.slice(0, 6).map(l => `<li>${esc(l)}</li>`).join("")}</ul></div>`;
   return h;
 }
 function chips(){
-  return G ? G.players.map((p, i) => `<span class="chip ${i === cur() && G.phase !== "over" ? "now" : ""}" style="--pc:${p.c}"><span class="dot">${esc(p.name[0] || "?")}</span>${esc(p.name)} <span class="vp">${points(i)}</span><small>${total(p.res)} cards</small></span>`).join("") : "";
+  return G ? G.players.map((p, i) => `<span class="chip ${i === cur() && G.phase !== "over" ? "now" : ""}" style="--pc:${p.c}"><span class="dot">${esc(p.name[0] || "?")}</span>${esc(p.name)} <span class="vp">${G.phase === "over" ? points(i) : pub(i)}</span><small>${total(p.res)} cards${devTotal(p.dev) ? " · " + devTotal(p.dev) + " dev" : ""}${G.road === i ? " · Road" : ""}${G.army === i ? " · Army" : ""}</small></span>`).join("") : "";
 }
 let menuOpen = false, setupPlayers = null;
 function setupScreen(){
@@ -482,7 +572,7 @@ function setupScreen(){
     <div class="row"><button class="btn" data-a="shuffle">Shuffle who goes first</button><button class="btn go" data-a="start" ${n >= 3 ? "" : "disabled"}>Start with ${n} players</button></div>
     ${n < 3 ? `<p class="sub">Tick at least 3 players.</p>` : ""}
     ${G && G.phase !== "over" ? `<button class="btn" data-a="resume">Back to the current game</button>` : ""}
-    <div class="card"><h3>Costs</h3><p class="sub">Road: brick + lumber. Settlement: brick + lumber + wool + grain. City: 3 ore + 2 grain. Roll 7: more than 7 cards means give back half, then the robber moves.</p></div></div>`;
+    <div class="card"><h3>Costs</h3><p class="sub">Road: brick + lumber. Settlement: brick + lumber + wool + grain. City: 3 ore + 2 grain. Development card: ore + wool + grain. Roll 7: more than 7 cards means give back half, then the robber moves.</p></div></div>`;
 }
 function render(){
   $("#chips").innerHTML = menuOpen || !G ? "" : chips();
@@ -513,7 +603,16 @@ document.addEventListener("click", e => {
     case "disc-": UI.disc[d.r]--; break;
     case "disc-ok": ACT.discard(UI.disc); break;
     case "steal": ACT.steal(+d.p); break;
-    case "end": ACT.end(); break;
+    case "end": ACT.end(); UI.pt = {give:zero(), get:zero(), to:null}; break;
+    case "buy": ACT.buy(); break;
+    case "play": ACT.play(d.t); UI.mode = null; break;
+    case "pick": ACT.pick(d.r); break;
+    case "skipSub": ACT.skipSub(); break;
+    case "pt+": UI.pt[d.s][d.r]++; if(d.s === "give") UI.pt.get[d.r] = 0; else UI.pt.give[d.r] = 0; break;
+    case "pt-": UI.pt[d.s][d.r]--; break;
+    case "pt-ask": UI.pt.to = +d.p; say(P(+d.p).name + ", " + P(cur()).name + " wants to trade with you."); break;
+    case "pt-no": UI.pt.to = null; say("No deal."); break;
+    case "pt-yes": if(ACT.ptrade(UI.pt.to, UI.pt.give, UI.pt.get)){ toast("Trade done"); say("Deal!"); UI.pt = {give:zero(), get:zero(), to:null}; } break;
     case "undo": ACT.undo(); break;
     case "talk": talk = !talk; break;
     case "menu": menuOpen = true; setupPlayers = null; break;
