@@ -579,7 +579,7 @@ function passTo(i, why){
   G.holder = i;
 }
 function chips(){
-  return G ? G.players.map((p, i) => `<span class="chip ${i === cur() && G.phase !== "over" ? "now" : ""}" style="--pc:${p.c}"><span class="dot">${esc(p.name[0] || "?")}</span>${esc(p.name)} <span class="vp">${G.phase === "over" ? points(i) : pub(i)}</span><small>${total(p.res)} cards${devTotal(p.dev) ? " · " + devTotal(p.dev) + " dev" : ""}${G.road === i ? " · Road" : ""}${G.army === i ? " · Army" : ""}</small></span>`).join("") : "";
+  return G ? G.players.map((p, i) => `<span class="chip ${i === cur() && G.phase !== "over" ? "now" : ""}" style="--pc:${p.c}"><span class="dot">${esc(p.name[0] || "?")}</span>${esc(p.name)} <span class="vp">${G.phase === "over" ? points(i) : pub(i)}</span><small>${total(p.res)} cards${devTotal(p.dev) ? " · " + devTotal(p.dev) + " dev" : ""}${p.knights ? " · " + p.knights + " knight" + (p.knights > 1 ? "s" : "") : ""}${G.road === i ? " · Road" : ""}${G.army === i ? " · Army" : ""}</small></span>`).join("") : "";
 }
 let menuOpen = false, setupPlayers = null, setupHide = true;
 function setupScreen(){
@@ -594,11 +594,20 @@ function setupScreen(){
     ${G && G.phase !== "over" ? `<button class="btn" data-a="resume">Back to the current game</button>` : ""}
     <div class="card"><h3>Costs</h3><p class="sub">Road: brick + lumber. Settlement: brick + lumber + wool + grain. City: 3 ore + 2 grain. Development card: ore + wool + grain. Roll 7: more than 7 cards means give back half, then the robber moves.</p></div></div>`;
 }
+/* Keep the panel where it was between taps; jump to the top only when the iPad changes hands */
+let saved = {panel:0, win:0}, wasConfirm = false, toTop = false;
 function render(){
+  const pnl = document.querySelector(".panel");
+  if(pnl && !wasConfirm) saved = {panel:pnl.scrollTop, win:window.scrollY || 0};
   $("#chips").innerHTML = menuOpen || !G ? "" : chips();
   $("#talkBtn").textContent = talk ? "Voice on" : "Voice off";
   $("#app").innerHTML = menuOpen || !G ? setupScreen() : (G.cover !== null && G.cover !== undefined && P(G.cover) ? coverScreen()
     : `<div class="layout"><div class="boardwrap">${drawBoard()}</div><div class="panel">${panel()}</div></div>`);
+  const confirm = !!(G && !menuOpen && G.phase === "main" && UI.pt.to !== null && UI.pt.to !== undefined);
+  const np = document.querySelector(".panel");
+  if(toTop || confirm){ if(np) np.scrollTop = 0; if(toTop) window.scrollTo(0, 0); if(toTop) saved = {panel:0, win:0}; }
+  else { if(np) np.scrollTop = saved.panel; if(window.scrollY !== saved.win) window.scrollTo(0, saved.win); }
+  wasConfirm = confirm; toTop = false;
   const hd = document.querySelector("header"); if(hd) document.documentElement.style.setProperty("--hh", hd.offsetHeight + "px");
   save();
 }
@@ -624,7 +633,7 @@ document.addEventListener("click", e => {
     case "disc-": UI.disc[d.r]--; break;
     case "disc-ok": ACT.discard(UI.disc); break;
     case "steal": ACT.steal(+d.p); break;
-    case "end": ACT.end(); UI.pt = {give:zero(), get:zero(), to:null}; break;
+    case "end": ACT.end(); toTop = true; UI.pt = {give:zero(), get:zero(), to:null}; break;
     case "buy": ACT.buy(); break;
     case "play": ACT.play(d.t); UI.mode = null; break;
     case "pick": ACT.pick(d.r); break;
@@ -634,13 +643,13 @@ document.addEventListener("click", e => {
     case "pt-ask": UI.pt.to = +d.p; passTo(+d.p, P(cur()).name + " wants to trade with you."); say(P(+d.p).name + ", " + P(cur()).name + " wants to trade with you."); break;
     case "pt-no": UI.pt.to = null; passTo(cur(), P(G.holder).name + " said no thanks."); say("No deal."); break;
     case "pt-yes": { const who = P(UI.pt.to).name; if(ACT.ptrade(UI.pt.to, UI.pt.give, UI.pt.get)){ toast("Trade done"); say("Deal!"); UI.pt = {give:zero(), get:zero(), to:null}; passTo(cur(), who + " accepted the trade."); } break; }
-    case "reveal": G.cover = null; break;
+    case "reveal": G.cover = null; toTop = true; break;
     case "undo": ACT.undo(); break;
     case "talk": talk = !talk; break;
     case "menu": menuOpen = true; setupPlayers = null; break;
     case "resume": menuOpen = false; break;
     case "shuffle": shuffle(setupPlayers); break;
-    case "start": { const ps = setupPlayers.filter(p => p.on); if(ps.length < 3) break; newGame(ps, setupHide); menuOpen = false; say("New game. " + ps[0].name + ", place your first settlement."); break; }
+    case "start": { const ps = setupPlayers.filter(p => p.on); if(ps.length < 3) break; newGame(ps, setupHide); menuOpen = false; toTop = true; say("New game. " + ps[0].name + ", place your first settlement."); break; }
     case "rally": if(sendToRally(G.winner)){ G.sent = true; toast("Added 25 points in Road Rally"); } else toast("Open Road Rally once on this iPad first, then try again"); break;
   }
   render();
