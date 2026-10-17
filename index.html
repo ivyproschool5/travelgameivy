@@ -756,6 +756,33 @@ function hear(raw){
   return false;
 }
 
+/* ---------- Backup and restore (Road Rally + AgrawalKatan) ---------- */
+const KATAN_KEY = "agrawalkatan-v2";
+const IN_CLAUDE = !!window.claude;
+const CAN_DOWNLOAD = !IN_CLAUDE;
+const CAN_SHARE = !IN_CLAUDE && !!(navigator.canShare && window.File && (() => { try{ return navigator.canShare({files:[new File(["x"], "x.json", {type:"application/json"})]}); }catch(e){ return false; } })());
+let pendingRestore = null, codeOpen = false;
+function makeBackup(){
+  let katan = null; try{ katan = JSON.parse(localStorage.getItem(KATAN_KEY)); if(katan && katan.G) katan.G.undo = []; }catch(e){}
+  return {app:"himachal-road-rally-backup", v:1, at:new Date().toISOString(), rally:JSON.parse(JSON.stringify(S)), katan};
+}
+const backupName = () => "road-rally-backup-" + new Date().toISOString().slice(0, 10) + ".json";
+function readBackup(text){
+  let d; try{ d = JSON.parse(String(text).trim()); }catch(e){ try{ d = JSON.parse(decodeURIComponent(escape(atob(String(text).trim())))); }catch(x){ return null; } }
+  if(!d || d.app !== "himachal-road-rally-backup" || !d.rally || !Array.isArray(d.rally.players)) return null;
+  const r = d.rally, tot = id => (r.days || []).reduce((t, x) => t + ((x.scores || {})[id] || 0), 0) + ((r.today || {})[id] || 0);
+  const when = d.at ? new Date(d.at).toLocaleString("en-IN", {day:"numeric", month:"short", hour:"numeric", minute:"2-digit"}) : "at an unknown time";
+  const summary = "Trip totals: " + r.players.map(p => p.name + " " + tot(p.id)).join(", ") + "." + (d.katan && d.katan.G ? " Includes an AgrawalKatan game." : "");
+  return {data:d, when, summary};
+}
+function applyBackup(b){
+  const d = b.data;
+  S = revive(d.rally); S.screen = "settings";
+  try{ if(d.katan) localStorage.setItem(KATAN_KEY, JSON.stringify(d.katan)); }catch(e){}
+  save();
+}
+const backupCode = () => btoa(unescape(encodeURIComponent(JSON.stringify(makeBackup()))));
+
 /* ---------- Render ---------- */
 function renderStones(bumpId){
   const sc = S.players.map(p => today(p.id)); const max = Math.max(...sc);
@@ -999,6 +1026,19 @@ const screens = {
           <li><span>"Next clue" / "Kippi" / "Show the answer"</span><span>Guess the game</span></li>
         </ul>
       </div>
+      <div class="card" id="backup"><h3>Backup and restore</h3>
+        <p class="sub" style="margin-top:-6px">One file holds the Road Rally scores, all trip days and any AgrawalKatan game in progress. Save it to Files, or send it to yourself on WhatsApp or email.</p>
+        ${pendingRestore ? `<div class="note"><strong>Restore this backup?</strong><br>Saved ${esc(pendingRestore.when)}. ${esc(pendingRestore.summary)}<br>This replaces the scores on this device.</div>
+          <div class="row"><button class="btn go" data-a="bk-yes">Yes, restore</button><button class="btn" data-a="bk-no">Cancel</button></div>` : `
+        <div class="row">${CAN_DOWNLOAD ? `<button class="btn go" data-a="bk-save">Save backup file</button>` : ""}${CAN_SHARE ? `<button class="btn" data-a="bk-share">Share backup</button>` : ""}</div>
+        <label class="btn" style="text-align:center;display:block;cursor:pointer">Restore from a backup file<input type="file" id="restoreFile" accept=".json,application/json,text/plain" style="display:none"></label>
+        <details ${codeOpen ? "open" : ""}><summary class="sub" style="cursor:pointer" data-a="bk-toggle">Use a backup code instead</summary>
+          <div style="display:grid;gap:8px;margin-top:8px">
+            <button class="btn" data-a="bk-copy">Copy backup code</button>
+            <textarea id="restoreCode" rows="3" placeholder="Paste a backup code here" style="width:100%;border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--surface);color:var(--ink);font:inherit"></textarea>
+            <button class="btn" data-a="bk-code">Restore from code</button>
+          </div></details>`}
+      </div>
       <div class="card"><h3>Start over</h3>
         ${S.g.resetAsk ? `<p class="sub">This wipes all days and scores. Sure?</p><div class="row"><button class="btn bad" data-a="reset-yes">Yes, wipe everything</button><button class="btn" data-a="reset-no">Keep scores</button></div>`
                        : `<button class="btn bad" data-a="reset-ask">Reset the whole trip</button>`}
@@ -1138,6 +1178,20 @@ const A = {
   "day-end"(){ S.days.push({n:S.day, scores:{...S.today}}); S.today = {}; S.log = []; S.day++; S.screen = "scores"; toast("Day saved. Good night!"); say("Day saved. Well played everyone. Good night!"); },
   "reset-ask"(){ S.g.resetAsk = true; },
   "reset-no"(){ S.g.resetAsk = false; },
+  "bk-save"(){ try{ const blob = new Blob([JSON.stringify(makeBackup())], {type:"application/json"}); const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob); a.download = backupName(); document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      toast("Backup saved"); }catch(e){ toast("Couldn't save the file. Use the backup code instead."); } },
+  "bk-share"(){ try{ const f = new File([JSON.stringify(makeBackup())], backupName(), {type:"application/json"});
+      navigator.share({files:[f], title:"Road Rally backup"}).catch(() => {}); }catch(e){ toast("Sharing isn't available here"); } },
+  "bk-toggle"(){ codeOpen = !codeOpen; },
+  "bk-copy"(){ codeOpen = true; const code = backupCode();
+      const done = () => toast("Backup code copied. Paste it into Notes or WhatsApp.");
+      const fallback = () => { const t = $("#restoreCode"); if(t){ t.value = code; t.select(); } toast("Code is in the box. Select all and copy it."); };
+      try{ navigator.clipboard.writeText(code).then(done, fallback); }catch(e){ fallback(); } },
+  "bk-code"(){ codeOpen = true; const t = $("#restoreCode"); const b = t && readBackup(t.value); if(!b){ toast("That doesn't look like a Road Rally backup code"); return; } pendingRestore = b; },
+  "bk-yes"(){ if(!pendingRestore) return; applyBackup(pendingRestore); pendingRestore = null; toast("Backup restored"); say("Backup restored."); },
+  "bk-no"(){ pendingRestore = null; },
+
   "reset-yes"(){ const keep = {players:S.players, settings:S.settings, leg:S.leg}; S = Object.assign(fresh(), keep); S.screen = "home"; toast("Trip reset"); }
 };
 
@@ -1149,6 +1203,9 @@ document.addEventListener("click", e => {
   f(b.dataset); save(); render();
 });
 document.addEventListener("change", e => {
+  if(e.target.id === "restoreFile"){ const f = e.target.files && e.target.files[0]; if(!f) return;
+    const rd = new FileReader(); rd.onload = () => { const b = readBackup(rd.result); if(!b){ toast("That file isn't a Road Rally backup"); return; } pendingRestore = b; render(); };
+    rd.readAsText(f); return; }
   const t = e.target;
   if(t.classList.contains("nm")){ S.players[+t.dataset.i].name = t.value.trim() || ("Player " + (+t.dataset.i + 1)); }
   else if(t.classList.contains("lv")){ S.players[+t.dataset.i].level = t.value; }

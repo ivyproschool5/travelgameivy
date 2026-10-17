@@ -592,6 +592,7 @@ function setupScreen(){
     <div class="row"><button class="btn" data-a="shuffle">Shuffle who goes first</button><button class="btn go" data-a="start" ${n >= 3 ? "" : "disabled"}>Start with ${n} players</button></div>
     ${n < 3 ? `<p class="sub">Tick at least 3 players.</p>` : ""}
     ${G && G.phase !== "over" ? `<button class="btn" data-a="resume">Back to the current game</button>` : ""}
+    <p class="sub">To back up scores and this game, open Road Rally, then Players &amp; settings, then Backup and restore.</p>
     <div class="card"><h3>Costs</h3><p class="sub">Road: brick + lumber. Settlement: brick + lumber + wool + grain. City: 3 ore + 2 grain. Development card: ore + wool + grain. Roll 7: more than 7 cards means give back half, then the robber moves.</p></div></div>`;
 }
 /* Keep the panel where it was between taps; jump to the top only when the iPad changes hands */
