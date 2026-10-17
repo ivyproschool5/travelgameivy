@@ -193,7 +193,11 @@ td.n,th.n{text-align:right}
 .cardtop{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .say{border:1.5px solid currentColor;background:transparent;color:inherit;border-radius:999px;padding:4px 12px;font-size:.82rem;font-weight:700;min-height:34px;flex:none;opacity:.85}
 .dock .inner{align-items:flex-end}
-.mic{flex:0 0 68px;height:68px;border-radius:50%;border:0;background:var(--cap);color:var(--cap-ink);display:grid;place-items:center;box-shadow:0 3px 0 rgba(0,0,0,.2);margin-top:-14px}
+.mic{flex:0 0 68px;height:68px;border-radius:50%;border:0;background:var(--cap);color:var(--cap-ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;box-shadow:0 3px 0 rgba(0,0,0,.2);margin-top:-14px;font-size:.68rem;font-weight:700;line-height:1}
+.mic svg{width:26px!important;height:26px!important}
+.tips{border:2px solid var(--sky)}
+.tips ol{margin:0;padding-left:1.2em;display:grid;gap:6px}
+.howto{background:var(--surface-2);border-radius:12px;padding:10px 12px;margin:0;font-size:.92rem}
 .mic svg{width:30px;height:30px}
 .mic.on{background:var(--bad);color:#fff;animation:pulse 1.1s ease-in-out infinite}
 @keyframes pulse{50%{transform:scale(1.08)}}
@@ -209,7 +213,7 @@ td.n,th.n{text-align:right}
 <body>
 <div class="app">
   <header class="top">
-    <div class="brand"><div class="titles"><h1>Ivy Road Rally</h1><span class="leg" id="leg"></span></div><a class="logo" href="https://www.ivyproschool.com/" target="_blank" rel="noopener" aria-label="Ivy Professional School website"><img src="ivy-logo.png" alt="Ivy Professional School"></a></div>
+    <div class="brand"><div class="titles"><h1>Ivy Road Rally</h1><span class="leg" id="leg"></span></div><a class="logo" href="https://ivyproschool.com/" target="_blank" rel="noopener" aria-label="Ivy Professional School website"><img src="ivy-logo.png" alt="Ivy Professional School"></a></div>
     <svg class="ridge" viewBox="0 0 400 18" preserveAspectRatio="none" aria-hidden="true">
       <path d="M0 18 L40 6 L62 12 L95 1 L130 13 L160 7 L196 14 L232 3 L262 11 L300 5 L338 13 L370 4 L400 10 L400 18 Z" fill="currentColor" opacity=".22"/>
       <path d="M88 3.5 L95 1 L101 4 Z M226 5 L232 3 L238 5.5 Z M365 5.5 L370 4 L375 6 Z" fill="currentColor" opacity=".8"/>
@@ -221,7 +225,7 @@ td.n,th.n{text-align:right}
     <button class="btn" data-a="go" data-s="home" id="homeBtn">Games</button>
     <button class="btn" data-a="go" data-s="scores">Scores</button>
     <button class="mic" data-a="mic" id="micBtn" aria-label="Talk: say a voice command" aria-pressed="false">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></svg><span>Talk</span>
     </button>
     <button class="btn" data-a="undo" id="undoBtn">Undo</button>
   </div></div>
@@ -892,6 +896,12 @@ const back = (title) => `<div class="head"><button class="back" data-a="go" data
 const screens = {
   home(){
     return `
+      ${S.tipsSeen ? "" : `<div class="card tips"><h3>Quick start</h3><ol>
+        <li>The person in the front seat holds the phone. The driver plays by voice only.</li>
+        <li>Pick a game below. The phone reads each challenge out loud.</li>
+        <li>Tap the name of whoever got it. Points add up on the milestones at the top.</li>
+        <li>At night, open Scores and tap <b>End today's drive</b> to crown the day's champion.</li></ol>
+        <button class="btn go" data-a="tips-ok">Got it</button></div>`}
       <div class="games">
         <button class="game" data-a="go" data-s="spot"><span class="sign diamond"><span>!</span></span><span><b>Spot It</b><small>Look out of the window. Everyone gets a target at their own level.</small></span></button>
         <button class="game" data-a="go" data-s="quiz"><span class="sign">?</span><span><b>Quick Quiz</b><small>Take turns. Pick the right answer from the choices. Each person gets their own level.</small></span></button>
@@ -931,6 +941,7 @@ const screens = {
     const g = S.g.quiz, p = ensureQuiz(), done = g.picked !== null, ok = done && g.opts[g.picked] === g.q[1];
     const nx = S.players[(g.turn + 1) % S.players.length];
     return `${back("Quick Quiz")}
+      <p class="howto">Read the question out to ${esc(p.name)}, then tap the answer they choose. 10 points for a right answer.</p>
       <div class="card">
         <div class="cardtop"><span class="lvl" style="color:var(--p${p.c})">${esc(p.name)}'s question · ${LEVELS[p.level].name}</span><button class="say" data-a="repeat">Read again</button></div>
         <p class="big">${esc(g.q[0])}</p>
@@ -947,6 +958,7 @@ const screens = {
     const g = S.g.ant; g.turn %= S.players.length; const p = S.players[g.turn];
     const L = "ABCDEFGHIJKLMNOPRSTUVWY".split("");
     return `${back("Antakshari")}
+      <p class="howto">Sing a few lines of any song that starts with the big letter, before the timer runs out. Then tap the last letter of that song to set the next player's letter.</p>
       <div class="card" style="align-items:center;text-align:center">
         <span class="lvl" style="color:var(--p${p.c})">${esc(p.name)}'s turn · ${LEVELS[p.level].ant} seconds</span>
         <p class="sub">Sing a song starting with</p>
@@ -976,6 +988,7 @@ const screens = {
         <p class="big" style="color:var(--p${p.c})">${esc(p.name)}'s turn</p>
         ${g.running ? timerHTML() : g.up ? `<p class="timeup">Time's up!</p>` : ""}
       </div>
+      <p class="howto">Say a word that starts with the last letter of the word before it. Tap the green button if it's right.</p>
       <div class="row"><button class="btn good" data-a="atlas-said">Said a word +5</button><button class="btn bad" data-a="atlas-out">${esc(p.name)} is out</button></div>
       <div class="card"><h3>Players</h3>${pbtns("noop", {on:p.id, out})}</div>
       <button class="btn small" data-a="atlas-change">End round</button>`;
@@ -1146,8 +1159,10 @@ const screens = {
       <div class="card">
         <p style="margin:0">Ivy Road Rally is a free app from <b>Ivy Professional School</b>, an AI and data science training institute running since 2008, with 37,500+ alumni.</p>
         <p style="margin:0">It started with one family's road trip. We planned, built and tested it with AI tools in a few days: the games, the scoring, the read-aloud voice, voice commands, offline play and a full board game. No app store, no server, and nothing to sign up for.</p>
-        <p style="margin:0">This is the kind of practical AI work we teach founders and business owners in our <b>AI for Entrepreneurs</b> programme, and the work we do for companies that want AI running inside their teams through our <b>enterprise AI implementation</b> projects.</p>
-        <a class="btn go" style="text-align:center;text-decoration:none;display:block" href="https://www.ivyproschool.com/" target="_blank" rel="noopener">Visit ivyproschool.com</a>
+        <p style="margin:0">This is the kind of practical AI work we teach founders and business owners in our <b>AI for Entrepreneurs</b> programme, and the work we do for companies that want AI running inside their teams through our <b>enterprise AI</b> programmes.</p>
+        <a class="btn go" style="text-align:center;text-decoration:none;display:block" href="https://ivyproschool.com/courses/ai-for-entrepreneurs-course" target="_blank" rel="noopener">AI for Entrepreneurs programme</a>
+        <a class="btn" style="text-align:center;text-decoration:none;display:block" href="https://ivyproschool.com/enterprise" target="_blank" rel="noopener">AI for companies and teams</a>
+        <a class="sub" style="text-align:center;display:block;color:var(--pine);font-weight:700" href="https://ivyproschool.com/" target="_blank" rel="noopener">ivyproschool.com</a>
       </div>
       <div class="card"><h3>Your privacy</h3><p class="sub" style="margin:0">There are no accounts. Names and scores are saved only on this device. Voice commands send your spoken words to your phone's speech service (Google or Apple) to turn them into text; nothing else is sent anywhere.</p></div>`;
   },
@@ -1328,6 +1343,7 @@ const A = {
   "bk-no"(){ pendingRestore = null; },
 
   "reset-yes"(){ const keep = {players:S.players, settings:S.settings, leg:S.leg, family:S.family, pack:S.pack, setupDone:true}; S = Object.assign(fresh(), keep); S.screen = "home"; toast("Scores reset"); },
+  "tips-ok"(){ S.tipsSeen = true; },
   "reset-ask-family"(){ S.g.resetAsk = "family"; },
   "reset-family"(){ const settings = S.settings; S = fresh(); S.settings = settings; W.err = ""; toast("Starting fresh"); },
   "w-add"(){ syncW(); if(W.players.length < 6) W.players.push({name:"", level:"expert"}); },

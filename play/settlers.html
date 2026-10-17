@@ -114,10 +114,11 @@ svg text{font-family:var(--display);pointer-events:none}
 <header>
   <h1>Ivy Settlers</h1>
   <div class="chips" id="chips"></div>
+  <button class="hbtn" data-a="rules">Rules</button>
   <button class="hbtn" id="talkBtn" data-a="talk">Voice on</button>
   <button class="hbtn" data-a="menu">New game</button>
   <a class="hbtn" href="./">Road Rally</a>
-  <a href="https://www.ivyproschool.com/" target="_blank" rel="noopener" aria-label="Ivy Professional School website" style="background:#fff;border-radius:8px;padding:3px 6px;line-height:0"><img src="ivy-logo.png" alt="Ivy Professional School" style="height:30px;width:auto;display:block"></a>
+  <a href="https://ivyproschool.com/" target="_blank" rel="noopener" aria-label="Ivy Professional School website" style="background:#fff;border-radius:8px;padding:3px 6px;line-height:0"><img src="ivy-logo.png" alt="Ivy Professional School" style="height:30px;width:auto;display:block"></a>
 </header>
 <div id="app"></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -490,7 +491,8 @@ function panel(){
   } else if(G.phase === "over"){
     h += `<h2>${esc(P(G.winner).name)} wins!</h2><p>${points(G.winner)} points after ${G.rolls} rolls.</p>`;
   } else {
-    h += `<h2>${esc(p.name)}'s turn</h2><p>${points(pi)} of ${WIN} points${p.dev.vp ? " (" + p.dev.vp + " hidden)" : ""}</p>`;
+    h += `<h2>${esc(p.name)}'s turn</h2><p>${points(pi)} of ${WIN} points${p.dev.vp ? " (" + p.dev.vp + " hidden)" : ""}</p>
+      ${G.phase === "roll" ? `<p style="opacity:.9;font-size:.95rem">Roll the dice to start your turn.</p>` : G.phase === "main" && !G.sub ? `<p style="opacity:.9;font-size:.95rem">Build, trade or play a card. Tap End turn when you are done.</p>` : ""}`;
   }
   h += `</div>`;
 
@@ -557,6 +559,18 @@ function panel(){
   }
   if(G.phase !== "setup") h += `<div class="card"><h3>Bonus cards (2 points each)</h3><p class="sub">Longest Road: ${G.road !== null ? `<b style="color:${P(G.road).c}">${esc(P(G.road).name)}</b> (${longest(G.road)} roads)` : "nobody yet (needs 5 in a row)"}<br>
     Largest Army: ${G.army !== null ? `<b style="color:${P(G.army).c}">${esc(P(G.army).name)}</b> (${P(G.army).knights} knights)` : "nobody yet (needs 3 knights)"}</p></div>`;
+  if(UI.rules) h = `<details class="card" open><summary style="cursor:pointer;font-family:var(--display);font-weight:700">How to play (2 minutes)</summary>
+      <div class="sub" style="display:grid;gap:8px;margin-top:8px;color:var(--ink)">
+        <p style="margin:0"><b>Goal:</b> first to 10 points wins. A settlement is 1 point, a city is 2.</p>
+        <p style="margin:0"><b>Start:</b> everyone places 2 settlements and 2 roads. The game shows white circles and lines where you are allowed to build.</p>
+        <p style="margin:0"><b>Your turn:</b> 1) roll the dice. Every land with that number gives cards to the settlements and cities touching it. 2) Trade cards with the bank or other players. 3) Build. 4) Tap End turn.</p>
+        <p style="margin:0"><b>The number dots:</b> more dots means that number is rolled more often. Red 6 and 8 come up the most.</p>
+        <p style="margin:0"><b>Costs:</b> Road = brick + lumber. Settlement = brick + lumber + wool + grain. City = 3 ore + 2 grain. Development card = ore + wool + grain.</p>
+        <p style="margin:0"><b>Rolling a 7:</b> nobody collects. Anyone holding more than 7 cards gives back half. The roller moves the robber to any land, which then stops producing, and takes 1 card from a player next to it.</p>
+        <p style="margin:0"><b>Trading:</b> 4 of one card for 1 of anything from the bank, or 3:1 and 2:1 if you have a settlement on a harbour.</p>
+        <p style="margin:0"><b>Development cards:</b> Knight (move the robber), Road Building (2 free roads), Year of Plenty (2 free cards), Monopoly (take everyone's cards of one type), Victory Point (1 hidden point). Play one per turn, not on the turn you bought it.</p>
+        <p style="margin:0"><b>Bonus 2 points:</b> Longest Road for the first unbroken road of 5 or more, and Largest Army for the first to play 3 knights. Someone with more takes them away.</p>
+      </div></details><button class="btn" data-a="rules">Close the rules</button>` + h;
   h += `<div class="card"><h3>What happened</h3><ul class="log">${G.log.slice(0, 6).map(l => `<li>${esc(l)}</li>`).join("")}</ul></div>`;
   return h;
 }
@@ -589,6 +603,18 @@ function setupScreen(){
   setupPlayers = setupPlayers || rallyPlayers().map((p, i) => ({...p, on:i < 4}));
   const n = setupPlayers.filter(p => p.on).length;
   return `<div class="setup"><h2>New game</h2>
+    <details class="card" ><summary style="cursor:pointer;font-family:var(--display);font-weight:700">How to play (2 minutes)</summary>
+      <div class="sub" style="display:grid;gap:8px;margin-top:8px;color:var(--ink)">
+        <p style="margin:0"><b>Goal:</b> first to 10 points wins. A settlement is 1 point, a city is 2.</p>
+        <p style="margin:0"><b>Start:</b> everyone places 2 settlements and 2 roads. The game shows white circles and lines where you are allowed to build.</p>
+        <p style="margin:0"><b>Your turn:</b> 1) roll the dice. Every land with that number gives cards to the settlements and cities touching it. 2) Trade cards with the bank or other players. 3) Build. 4) Tap End turn.</p>
+        <p style="margin:0"><b>The number dots:</b> more dots means that number is rolled more often. Red 6 and 8 come up the most.</p>
+        <p style="margin:0"><b>Costs:</b> Road = brick + lumber. Settlement = brick + lumber + wool + grain. City = 3 ore + 2 grain. Development card = ore + wool + grain.</p>
+        <p style="margin:0"><b>Rolling a 7:</b> nobody collects. Anyone holding more than 7 cards gives back half. The roller moves the robber to any land, which then stops producing, and takes 1 card from a player next to it.</p>
+        <p style="margin:0"><b>Trading:</b> 4 of one card for 1 of anything from the bank, or 3:1 and 2:1 if you have a settlement on a harbour.</p>
+        <p style="margin:0"><b>Development cards:</b> Knight (move the robber), Road Building (2 free roads), Year of Plenty (2 free cards), Monopoly (take everyone's cards of one type), Victory Point (1 hidden point). Play one per turn, not on the turn you bought it.</p>
+        <p style="margin:0"><b>Bonus 2 points:</b> Longest Road for the first unbroken road of 5 or more, and Largest Army for the first to play 3 knights. Someone with more takes them away.</p>
+      </div></details>
     <p class="sub">3 or 4 players. Pass the iPad around. First to ${WIN} points wins. Players take turns in this order.</p>
     <div class="card">${setupPlayers.map((p, i) => `<label class="pl" style="--pc:${p.c}"><input type="checkbox" data-i="${i}" class="pon" ${p.on ? "checked" : ""}><span class="dot"></span><input type="text" id="pn-${i}" data-i="${i}" class="pname" value="${esc(p.name)}" maxlength="12" aria-label="Player ${i+1} name"></label>`).join("")}</div>
     <label class="pl card" style="flex-direction:row"><input type="checkbox" id="hideOpt" ${setupHide ? "checked" : ""}><span><b>Hide cards between turns</b><br><span class="sub">Shows a "Pass the iPad" screen with the next player's name whenever the iPad changes hands, so nobody sees anyone else's cards.</span></span></label>
@@ -651,6 +677,7 @@ document.addEventListener("click", e => {
     case "reveal": G.cover = null; toTop = true; break;
     case "undo": ACT.undo(); break;
     case "talk": talk = !talk; break;
+    case "rules": UI.rules = !UI.rules; if(UI.rules) toTop = true; break;
     case "menu": menuOpen = true; setupPlayers = null; break;
     case "resume": menuOpen = false; break;
     case "shuffle": shuffle(setupPlayers); break;
