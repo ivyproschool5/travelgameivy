@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b5394">
+<title>Ivy Deal</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Poppins:wght@400;600;700&display=swap">
+<style>
+/* Layout: the table (everyone's properties and banks) on the left, the current player's hand and choices on the right.
+   Ivy deep blue and white for the app; property colours only on the cards. */
+:root{
+  --bg:#ffffff; --surface:#ffffff; --surface-2:#eaf4fa; --ink:#14202b; --muted:#526a7d; --line:#d3e3ee;
+  --pine:#0b5394; --pine-ink:#ffffff; --sky:#1a98cb; --cap:#f7a61b; --cap-ink:#14202b; --bad:#b0422d; --good:#1d7a4b;
+  --display:"Montserrat","Open Sans",system-ui,sans-serif; --body:"Poppins","Open Sans",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --bg:#0b1726; --surface:#12233a; --surface-2:#1a3150; --ink:#eaf2f8; --muted:#9fb4c6; --line:#244263; --pine:#3aaee0; --pine-ink:#04121f; --good:#52c48b; --bad:#f07c64; color-scheme:dark; }}
+:root[data-theme="dark"]{ --bg:#0b1726; --surface:#12233a; --surface-2:#1a3150; --ink:#eaf2f8; --muted:#9fb4c6; --line:#244263; --pine:#3aaee0; --pine-ink:#04121f; --good:#52c48b; --bad:#f07c64; color-scheme:dark; }
+*{box-sizing:border-box}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.4;-webkit-tap-highlight-color:transparent}
+button,input{font:inherit;color:inherit} button{cursor:pointer}
+:focus-visible{outline:3px solid var(--cap);outline-offset:2px}
+[hidden]{display:none!important}
+header{background:#0b5394;color:#fff;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-block:10px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header h1{font-family:var(--display);font-weight:800;font-size:1.35rem;margin:0;flex:1}
+.hbtn{background:rgba(255,255,255,.14);border:0;color:#fff;border-radius:10px;padding:8px 12px;font-weight:600;text-decoration:none;font-size:.88rem}
+.logo{background:#fff;border-radius:8px;padding:3px 6px;line-height:0} .logo img{height:28px;width:auto;display:block}
+main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,400px);gap:16px;align-items:start;padding-block:14px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));max-width:1280px;margin:0 auto}
+@media (max-width: 900px){ main{grid-template-columns:1fr} .side{order:-1} }
+.col{display:flex;flex-direction:column;gap:12px;min-width:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.turn{background:#0b5394;color:#fff;border:0} .turn h2{font-family:var(--display);font-weight:800;font-size:1.4rem;margin:0;line-height:1.15} .turn p{margin:0}
+.alert{border:2px solid var(--cap)}
+h3{font-family:var(--display);font-weight:700;font-size:1rem;margin:0}
+.sub{color:var(--muted);margin:0;font-size:.9rem}
+.btn{border:0;border-radius:12px;padding:10px 14px;min-height:48px;font-weight:700;background:var(--surface-2);color:var(--ink);text-align:center}
+.btn.go{background:var(--pine);color:var(--pine-ink)} .btn.amber{background:var(--cap);color:var(--cap-ink)} .btn.bad{background:transparent;border:2px solid var(--bad);color:var(--bad)}
+.btn:disabled{opacity:.4;cursor:default}
+.row{display:flex;gap:8px;flex-wrap:wrap} .row .btn{flex:1 1 auto}
+.hand{display:flex;gap:8px;flex-wrap:wrap}
+.dc{width:96px;min-height:128px;border-radius:10px;border:2px solid #c9d6e0;background:#fff;color:#14202b;display:flex;flex-direction:column;overflow:hidden;text-align:left;padding:0;position:relative;flex:none}
+.dc .band{height:26px;display:flex}
+.dc .band i{flex:1}
+.dc .nm{font-family:var(--display);font-weight:700;font-size:.78rem;line-height:1.15;padding:5px 6px 0}
+.dc .nt{font-size:.66rem;line-height:1.2;padding:3px 6px;color:#3d4f5e}
+.dc .val{position:absolute;right:4px;bottom:4px;background:#14202b;color:#fff;border-radius:6px;font-size:.66rem;font-weight:700;padding:1px 5px}
+.dc.money{background:#eef8f1} .dc.money .nm{font-size:1.25rem;padding-top:16px;text-align:center}
+.dc.sel{border-color:#0b5394;box-shadow:0 0 0 3px var(--cap)}
+.dc.pick{border-color:var(--sky)} .dc.picked{border-color:#0b5394;box-shadow:0 0 0 3px var(--cap);transform:translateY(-3px)}
+.dc.sm{width:74px;min-height:92px} .dc.sm .band{height:18px} .dc.sm .nm{font-size:.68rem} .dc.sm .nt{display:none}
+.sets{display:flex;gap:10px;flex-wrap:wrap}
+.set{display:flex;flex-direction:column;gap:4px;border-radius:10px;padding:6px;background:var(--surface-2);min-width:84px}
+.set .hd{font-size:.72rem;font-weight:700;display:flex;justify-content:space-between;gap:6px}
+.set.full{outline:3px solid var(--good)}
+.set .stack{display:flex;flex-direction:column;gap:3px}
+.chipline{display:flex;gap:6px;flex-wrap:wrap}
+.mchip{background:#eef8f1;color:#14202b;border:1px solid #b9dcc4;border-radius:8px;padding:2px 8px;font-weight:700;font-size:.82rem}
+.opp h3{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.opts{display:grid;gap:8px}
+.setup{max-width:640px;margin:20px auto;display:flex;flex-direction:column;gap:14px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.setup h2{font-family:var(--display);font-weight:800;font-size:1.8rem;margin:0}
+.pl{display:flex;align-items:center;gap:10px} .pl input{width:28px;height:28px;accent-color:#0b5394}
+.ivy{font-size:.85rem;color:var(--muted)} .ivy a{color:var(--pine);font-weight:700}
+.cover{position:fixed;inset:0;z-index:20;background:#0b5394;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:24px}
+.cover h2{font-family:var(--display);font-weight:800;font-size:3.2rem;margin:0;line-height:1}
+.toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 70px);transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;font-weight:700;opacity:0;transition:opacity .2s;pointer-events:none;z-index:30;max-width:90vw;text-align:center}
+.toast.show{opacity:1}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Ivy Deal</h1>
+  <button class="hbtn" data-a="rules">Rules</button>
+  <button class="hbtn" id="talkBtn" data-a="talk">Voice on</button>
+  <button class="hbtn" data-a="menu">New game</button>
+  <a class="hbtn" href="./">Road Rally</a>
+  <a class="logo" href="https://ivyproschool.com/" target="_blank" rel="noopener" aria-label="Ivy Professional School website"><img src="ivy-logo.png" alt="Ivy Professional School"></a>
+</header>
+<div id="app"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+/* ---------- Cards: 106-card deck (20 money, 28 properties, 11 wild properties, 34 actions, 13 rent) ---------- */
+const COLORS = {
+  brown:    {name:"Brown",      c:"#8b5a2b", size:2, rent:[1,2],     v:1, props:["Chandni Chowk","Old Delhi"]},
+  lightblue:{name:"Light Blue", c:"#7fc8ec", size:3, rent:[1,2,3],   v:1, props:["Shimla","Manali","Ooty"]},
+  pink:     {name:"Pink",       c:"#d6519b", size:3, rent:[1,2,4],   v:2, props:["Jaipur","Udaipur","Jodhpur"]},
+  orange:   {name:"Orange",     c:"#f0892c", size:3, rent:[1,3,5],   v:2, props:["Goa","Kochi","Puducherry"]},
+  red:      {name:"Red",        c:"#d83a3a", size:3, rent:[2,3,6],   v:3, props:["Kolkata","Chennai","Hyderabad"]},
+  yellow:   {name:"Yellow",     c:"#f2c94c", size:3, rent:[2,4,6],   v:3, props:["Pune","Ahmedabad","Lucknow"]},
+  green:    {name:"Green",      c:"#2e9e4f", size:3, rent:[2,4,7],   v:4, props:["Bengaluru","Gurugram","Noida"]},
+  darkblue: {name:"Dark Blue",  c:"#1f3f9e", size:2, rent:[3,8],     v:4, props:["Marine Drive","Lutyens' Delhi"]},
+  railroad: {name:"Railway",    c:"#3b3f45", size:4, rent:[1,2,3,4], v:2, props:["Howrah Station","CST Mumbai","Chennai Central","New Delhi Station"]},
+  utility:  {name:"Utility",    c:"#8fb59b", size:2, rent:[1,2],     v:2, props:["Power Grid","Water Works"]}
+};
+const ORDER = Object.keys(COLORS);
+const ACT = {
+  breaker: {name:"Deal Breaker",     v:5, n:2,  note:"Take a complete set from another player."},
+  jsn:     {name:"Just Say No",      v:4, n:3,  note:"Cancel an action played against you."},
+  sly:     {name:"Sly Deal",         v:3, n:3,  note:"Take 1 property that is not in a complete set."},
+  forced:  {name:"Forced Deal",      v:3, n:3,  note:"Swap 1 of your properties for 1 of theirs (not from complete sets)."},
+  debt:    {name:"Debt Collector",   v:3, n:3,  note:"One player pays you ₹5 Cr."},
+  birthday:{name:"It's My Birthday", v:2, n:3,  note:"Every other player pays you ₹2 Cr."},
+  passgo:  {name:"Pass Go",          v:1, n:10, note:"Draw 2 more cards."},
+  house:   {name:"House",            v:3, n:3,  note:"Put on a complete set: +₹3 Cr rent. Not on railways or utilities."},
+  hotel:   {name:"Hotel",            v:4, n:2,  note:"Put on a complete set with a house: +₹4 Cr rent."},
+  double:  {name:"Double the Rent",  v:1, n:2,  note:"Play with a rent card to double the rent. Uses a play."}
+};
+const CARDS = (() => { const d = []; const add = (o, n = 1) => { for(let i = 0; i < n; i++) d.push({...o, id:d.length}); };
+  [[1,6],[2,5],[3,3],[4,3],[5,2],[10,1]].forEach(([v, n]) => add({kind:"money", v, name:"₹" + v + " Cr"}, n));
+  ORDER.forEach(c => COLORS[c].props.forEach(nm => add({kind:"prop", colors:[c], v:COLORS[c].v, name:nm})));
+  [["darkblue","green",4,1],["lightblue","brown",1,1],["pink","orange",2,2],["railroad","green",4,1],["railroad","lightblue",4,1],["railroad","utility",2,1],["red","yellow",3,2]]
+    .forEach(([a, b, v, n]) => add({kind:"wild", colors:[a, b], v, name:"Wild property"}, n));
+  add({kind:"wild", colors:"any", v:0, name:"Wild property"}, 2);
+  Object.entries(ACT).forEach(([k, a]) => add({kind:"action", act:k, v:a.v, name:a.name}, a.n));
+  [["darkblue","green"],["red","yellow"],["pink","orange"],["lightblue","brown"],["railroad","utility"]].forEach(([a, b]) => add({kind:"rent", colors:[a, b], v:1, name:"Rent"}, 2));
+  add({kind:"rent", colors:"any", v:3, name:"Any-colour rent"}, 3);
+  return d; })();
+const C = id => CARDS[id];
+const isMulti = id => C(id).colors === "any";
+
+/* ---------- Helpers ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const shuffle = a => { for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const PUBLIC = typeof location !== "undefined" && /\/play\//.test(location.pathname);
+const RALLY_KEY = PUBLIC ? "ivy-rr-v1" : "himachal-rally-v1", KEY = PUBLIC ? "ivy-deal-v1" : "family-deal-v1";
+const cr = v => "₹" + v + " Cr";
+
+/* ---------- State ---------- */
+let G = null, UI = {sel:null, step:null, picks:[], dbl:false, target:null, take:null}, menuOpen = false, setupPlayers = null, setupHide = true, rulesOpen = false;
+function newGame(people, hide){
+  G = {v:1, players:people.map(p => ({id:p.id, name:p.name, hand:[], bank:[], sets:{}})), deck:shuffle(CARDS.map(c => c.id)), discard:[], wcol:{},
+    turn:0, plays:3, phase:"play", pending:null, log:[], winner:null, hide:!!hide, cover:null, coverWhy:"", holder:0, sent:false};
+  G.players.forEach((_, i) => draw(i, 5));
+  startTurn(true);
+}
+const P = i => G.players[i];
+function log(t){ G.log.unshift(t); G.log.length = Math.min(G.log.length, 40); }
+function draw(pi, n){ for(let k = 0; k < n; k++){ if(!G.deck.length){ if(!G.discard.length) return; G.deck = shuffle(G.discard); G.discard = []; log("The used cards were shuffled into a new pile."); } P(pi).hand.push(G.deck.pop()); } }
+const takeFromHand = (pi, id) => { const h = P(pi).hand, k = h.indexOf(id); if(k < 0) return false; h.splice(k, 1); return true; };
+
+/* ---------- Properties and money ---------- */
+const setOf = (pi, c) => (P(pi).sets[c] = P(pi).sets[c] || {cards:[], house:null, hotel:null});
+const colorOfCard = id => C(id).kind === "prop" ? C(id).colors[0] : G.wcol[id];
+const isComplete = (pi, c) => { const s = P(pi).sets[c]; return !!s && s.cards.length >= COLORS[c].size && s.cards.some(id => !isMulti(id)); };
+const completeColors = pi => ORDER.filter(c => isComplete(pi, c));
+function rentValue(pi, c){
+  const s = P(pi).sets[c]; if(!s || !s.cards.some(id => !isMulti(id))) return 0;
+  const n = Math.min(s.cards.length, COLORS[c].size); let v = COLORS[c].rent[n - 1];
+  if(isComplete(pi, c)){ if(s.house !== null) v += 3; if(s.hotel !== null) v += 4; }
+  return v;
+}
+const bankTotal = pi => P(pi).bank.reduce((t, id) => t + C(id).v, 0);
+function assets(pi){ const out = [...P(pi).bank]; ORDER.forEach(c => { const s = P(pi).sets[c]; if(!s) return; out.push(...s.cards); if(s.house !== null) out.push(s.house); if(s.hotel !== null) out.push(s.hotel); }); return out; }
+const assetsValue = pi => assets(pi).reduce((t, id) => t + C(id).v, 0);
+function fixBuildings(pi, c){ const s = P(pi).sets[c]; if(!s) return;
+  if(!isComplete(pi, c)){ if(s.hotel !== null){ P(pi).bank.push(s.hotel); s.hotel = null; } if(s.house !== null){ P(pi).bank.push(s.house); s.house = null; } }
+  if(!s.cards.length && s.house === null){ delete P(pi).sets[c]; } }
+function removeProp(pi, id){ for(const c of ORDER){ const s = P(pi).sets[c]; if(!s) continue; const k = s.cards.indexOf(id); if(k >= 0){ s.cards.splice(k, 1); fixBuildings(pi, c); return c; }
+  if(s.house === id){ s.house = null; if(s.hotel !== null){ P(pi).bank.push(s.hotel); s.hotel = null; } fixBuildings(pi, c); return c; } if(s.hotel === id){ s.hotel = null; return c; } } return null; }
+const wildCan = (id, c) => isMulti(id) || C(id).colors.includes(c);
+function addProp(pi, id, c){
+  const card = C(id);
+  if(card.kind === "prop") c = card.colors[0];
+  else if(!c || !wildCan(id, c)) c = G.wcol[id] && wildCan(id, G.wcol[id]) ? G.wcol[id] : (isMulti(id) ? (ORDER.find(k => P(pi).sets[k] && P(pi).sets[k].cards.some(x => !isMulti(x))) || "brown") : card.colors[0]);
+  if(card.kind === "wild") G.wcol[id] = c;
+  setOf(pi, c).cards.push(id);
+}
+const inCompleteSet = (pi, id) => { const c = ORDER.find(k => P(pi).sets[k] && P(pi).sets[k].cards.includes(id)); return c ? isComplete(pi, c) : false; };
+const looseProps = pi => ORDER.flatMap(c => P(pi).sets[c] && !isComplete(pi, c) ? P(pi).sets[c].cards : []);
+const hasJSN = pi => P(pi).hand.some(id => C(id).act === "jsn");
+const others = pi => G.players.map((_, i) => i).filter(i => i !== pi);
+
+/* ---------- Turns ---------- */
+function startTurn(first){
+  const pi = G.turn; draw(pi, P(pi).hand.length ? 2 : 5); G.plays = 3; G.phase = "play"; G.pending = null;
+  if(!first) passTo(pi, "It's your turn.");
+  checkWin(pi);
+}
+function passTo(i, why){ if(G.hide && G.holder !== i){ G.cover = i; G.coverWhy = why; say("Pass to " + P(i).name + "."); } G.holder = i; }
+function checkWin(pi){ if(G.winner === null && completeColors(pi).length >= 3){ G.winner = pi; G.phase = "over"; G.pending = null; log(P(pi).name + " has 3 complete sets and wins!"); say(P(pi).name + " wins!"); return true; } return false; }
+function endTurn(){
+  if(G.phase !== "play" || G.pending) return false;
+  if(P(G.turn).hand.length > 7){ G.phase = "discard"; return true; }
+  G.turn = (G.turn + 1) % G.players.length; startTurn(false); return true;
+}
+function discardCards(ids){
+  const pi = G.turn, h = P(pi).hand; if(G.phase !== "discard" || h.length - ids.length !== 7 || !ids.every(id => h.includes(id))) return false;
+  ids.forEach(id => { takeFromHand(pi, id); G.discard.push(id); }); log(P(pi).name + " discarded " + ids.length + " card" + (ids.length > 1 ? "s" : "") + ".");
+  G.phase = "play"; G.turn = (G.turn + 1) % G.players.length; startTurn(false); return true;
+}
+const canPlay = () => G.phase === "play" && !G.pending && G.plays > 0;
+function used(pi, id){ takeFromHand(pi, id); G.plays--; }
+
+/* ---------- Plays ---------- */
+const DO = {
+  bank(id){ const pi = G.turn, c = C(id); if(!canPlay() || !["money","action","rent"].includes(c.kind) || !P(pi).hand.includes(id)) return false;
+    used(pi, id); P(pi).bank.push(id); log(P(pi).name + " banked " + cr(c.v) + "."); return true; },
+  prop(id, col){ const pi = G.turn, c = C(id); if(!canPlay() || !["prop","wild"].includes(c.kind) || !P(pi).hand.includes(id)) return false;
+    if(c.kind === "wild" && !wildCan(id, col)) return false; used(pi, id); addProp(pi, id, col); log(P(pi).name + " placed " + (c.kind === "prop" ? c.name : "a wild card") + "."); checkWin(pi); return true; },
+  moveWild(id, col){ const pi = G.turn; if(G.phase !== "play" || G.pending || C(id).kind !== "wild" || !wildCan(id, col)) return false;
+    const from = ORDER.find(k => P(pi).sets[k] && P(pi).sets[k].cards.includes(id)); if(!from || from === col) return false;
+    removeProp(pi, id); addProp(pi, id, col); checkWin(pi); return true; },
+  build(id, col){ const pi = G.turn, a = C(id).act; if(!canPlay() || !P(pi).hand.includes(id) || !isComplete(pi, col) || col === "railroad" || col === "utility") return false;
+    const s = P(pi).sets[col];
+    if(a === "house" && s.house === null){ used(pi, id); s.house = id; }
+    else if(a === "hotel" && s.house !== null && s.hotel === null){ used(pi, id); s.hotel = id; }
+    else return false;
+    log(P(pi).name + " added a " + C(id).name.toLowerCase() + " to " + COLORS[col].name + "."); return true; },
+  passgo(id){ const pi = G.turn; if(!canPlay() || C(id).act !== "passgo" || !P(pi).hand.includes(id)) return false; used(pi, id); G.discard.push(id); draw(pi, 2); log(P(pi).name + " played Pass Go."); return true; },
+  birthday(id){ const pi = G.turn; if(!canPlay() || C(id).act !== "birthday" || !P(pi).hand.includes(id)) return false; used(pi, id); G.discard.push(id);
+    log(P(pi).name + " played It's My Birthday."); say("It's " + P(pi).name + "'s birthday! Everyone pays 2 crore.");
+    return start({kind:"pay", from:pi, queue:others(pi).map(t => ({t, amount:2})), label:"It's My Birthday"}); },
+  debt(id, t){ const pi = G.turn; if(!canPlay() || C(id).act !== "debt" || !P(pi).hand.includes(id) || t === pi || !P(t)) return false; used(pi, id); G.discard.push(id);
+    log(P(pi).name + " played Debt Collector on " + P(t).name + "."); return start({kind:"pay", from:pi, queue:[{t, amount:5}], label:"Debt Collector"}); },
+  rent(id, col, t, dbl){ const pi = G.turn, c = C(id); if(!canPlay() || c.kind !== "rent" || !P(pi).hand.includes(id)) return false;
+    if(c.colors !== "any" && !c.colors.includes(col)) return false; let v = rentValue(pi, col); if(!v) return false;
+    const dId = dbl ? P(pi).hand.find(x => C(x).act === "double") : undefined; if(dbl && (dId === undefined || G.plays < 2)) return false;
+    let targets = c.colors === "any" ? [t] : others(pi); if(c.colors === "any" && (t === pi || !P(t))) return false;
+    used(pi, id); G.discard.push(id); if(dId !== undefined){ used(pi, dId); G.discard.push(dId); v *= 2; }
+    log(P(pi).name + " charged " + COLORS[col].name + " rent: " + cr(v) + (dId !== undefined ? " (doubled)" : "") + ".");
+    return start({kind:"pay", from:pi, queue:targets.map(x => ({t:x, amount:v})), label:COLORS[col].name + " rent"}); },
+  sly(id, t, take){ const pi = G.turn; if(!canPlay() || C(id).act !== "sly" || !P(pi).hand.includes(id) || t === pi || !looseProps(t).includes(take)) return false;
+    used(pi, id); G.discard.push(id); log(P(pi).name + " played Sly Deal on " + P(t).name + ".");
+    return start({kind:"sly", from:pi, queue:[{t}], take, label:"Sly Deal: take " + C(take).name}); },
+  forced(id, t, take, give){ const pi = G.turn; if(!canPlay() || C(id).act !== "forced" || !P(pi).hand.includes(id) || t === pi || !looseProps(t).includes(take) || !looseProps(pi).includes(give)) return false;
+    used(pi, id); G.discard.push(id); log(P(pi).name + " played Forced Deal on " + P(t).name + ".");
+    return start({kind:"forced", from:pi, queue:[{t}], take, give, label:"Forced Deal: swap " + C(give).name + " for " + C(take).name}); },
+  breaker(id, t, col){ const pi = G.turn; if(!canPlay() || C(id).act !== "breaker" || !P(pi).hand.includes(id) || t === pi || !isComplete(t, col)) return false;
+    used(pi, id); G.discard.push(id); log(P(pi).name + " played Deal Breaker on " + P(t).name + "'s " + COLORS[col].name + " set.");
+    return start({kind:"breaker", from:pi, queue:[{t}], col, label:"Deal Breaker: take the " + COLORS[col].name + " set"}); }
+};
+
+/* ---------- Actions against other players, with Just Say No ---------- */
+function start(p){ p.no = 0; p.decider = "target"; G.pending = p; advance(); return true; }
+function advance(){
+  const p = G.pending; if(!p) return;
+  while(p.queue.length){
+    const q = p.queue[0];
+    if(p.kind === "pay" && assetsValue(q.t) === 0){ log(P(q.t).name + " has nothing to pay with."); p.queue.shift(); continue; }
+    if(p.decider === "target" && hasJSN(q.t)){ G.phase = "respond"; passTo(q.t, P(p.from).name + " played " + p.label + " on you."); return; }
+    if(p.decider === "actor" && hasJSN(p.from)){ G.phase = "respond"; passTo(p.from, P(q.t).name + " said Just Say No."); return; }
+    if(p.no % 2 === 1){ log(P(q.t).name + " blocked it with Just Say No."); nextTarget(); continue; }
+    if(p.kind === "pay"){ G.phase = "pay"; passTo(q.t, "You owe " + P(p.from).name + " " + cr(q.amount) + "."); return; }
+    apply(p, q.t); nextTarget();
+  }
+  finish();
+}
+function nextTarget(){ const p = G.pending; p.queue.shift(); p.no = 0; p.decider = "target"; }
+function finish(){ const pi = G.pending ? G.pending.from : G.turn; G.pending = null; if(G.phase !== "over"){ G.phase = "play"; passTo(pi, "Back to your turn."); checkWin(pi); } }
+/* who = the player answering: plays Just Say No (yes) or lets it happen (no) */
+function respond(useJSN){
+  const p = G.pending; if(!p || G.phase !== "respond") return false;
+  const q = p.queue[0], who = p.decider === "target" ? q.t : p.from;
+  if(useJSN){ const j = P(who).hand.find(id => C(id).act === "jsn"); if(j === undefined) return false; takeFromHand(who, j); G.discard.push(j); p.no++;
+    log(P(who).name + " played Just Say No."); say(P(who).name + " says no!"); p.decider = p.decider === "target" ? "actor" : "target"; }
+  else { p.decider = "done"; }
+  if(p.decider === "done"){
+    if(p.no % 2 === 1){ log(P(q.t).name + " blocked it with Just Say No."); nextTarget(); advance(); return true; }
+    if(p.kind === "pay"){ G.phase = "pay"; passTo(q.t, "You owe " + P(p.from).name + " " + cr(q.amount) + "."); return true; }
+    apply(p, q.t); nextTarget(); advance(); return true;
+  }
+  advance(); return true;
+}
+function apply(p, t){
+  const pi = p.from;
+  if(p.kind === "sly" && looseProps(t).includes(p.take)){ removeProp(t, p.take); addProp(pi, p.take); log(P(pi).name + " took " + C(p.take).name + " from " + P(t).name + "."); }
+  if(p.kind === "forced" && looseProps(t).includes(p.take) && looseProps(pi).includes(p.give)){ removeProp(t, p.take); removeProp(pi, p.give); addProp(pi, p.take); addProp(t, p.give); log(P(pi).name + " swapped with " + P(t).name + "."); }
+  if(p.kind === "breaker" && isComplete(t, p.col)){ const s = P(t).sets[p.col]; delete P(t).sets[p.col];
+    const mine = setOf(pi, p.col); s.cards.forEach(id => { mine.cards.push(id); if(C(id).kind === "wild") G.wcol[id] = p.col; });
+    [s.house, s.hotel].forEach((b, k) => { if(b === null) return; if(k === 0 ? mine.house === null : mine.hotel === null){ if(k === 0) mine.house = b; else mine.hotel = b; } else P(pi).bank.push(b); });
+    log(P(pi).name + " took " + P(t).name + "'s " + COLORS[p.col].name + " set!"); }
+}
+/* Payer chooses cards from bank and table. Must cover the amount, or hand over everything if they can't. No change is given. */
+function pay(ids){
+  const p = G.pending; if(!p || G.phase !== "pay") return false;
+  const q = p.queue[0], t = q.t, all = assets(t);
+  if(!ids.every(id => all.includes(id)) || new Set(ids).size !== ids.length) return false;
+  const sum = ids.reduce((s, id) => s + C(id).v, 0), total = all.reduce((s, id) => s + C(id).v, 0);
+  if(sum < q.amount && ids.length < all.length && sum < total) return false;
+  ids.forEach(id => { const k = P(t).bank.indexOf(id);
+    if(k >= 0){ P(t).bank.splice(k, 1); P(p.from).bank.push(id); return; }
+    const col = removeProp(t, id);
+    if(["house","hotel"].includes(C(id).act)) P(p.from).bank.push(id); else addProp(p.from, id, G.wcol[id]); });
+  log(P(t).name + " paid " + P(p.from).name + " " + cr(sum) + ".");
+  nextTarget(); advance(); return true;
+}
+
+/* ---------- Voice and saving ---------- */
+const TTS = typeof speechSynthesis !== "undefined"; let voice = null, talk = true;
+function pickVoice(){ if(!TTS) return; const vs = speechSynthesis.getVoices();
+  voice = vs.find(v => /^en[-_]US/i.test(v.lang) && /natural|enhanced|premium|online/i.test(v.name)) || vs.find(v => /^en[-_]US/i.test(v.lang)) || vs.find(v => /^en/i.test(v.lang)) || null; }
+if(TTS){ pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
+function say(t){ if(!TTS || !talk || typeof SpeechSynthesisUtterance === "undefined") return; try{ const u = new SpeechSynthesisUtterance(t); if(voice){ u.voice = voice; u.lang = voice.lang; } u.rate = .95; speechSynthesis.speak(u); }catch(e){} }
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify({G, talk})); }catch(e){} }
+function load(){ try{ const d = JSON.parse(localStorage.getItem(KEY)); if(d){ talk = d.talk !== false; if(d.G && d.G.v === 1) G = d.G; } }catch(e){} }
+function rallyPlayers(){ try{ const d = JSON.parse(localStorage.getItem(RALLY_KEY)); if(d && d.players && d.players.length) return d.players.map(p => ({id:p.id, name:p.name})); }catch(e){}
+  if(!PUBLIC) return [["mom","Mom"],["dad","Dad"],["kippi","Kippi"],["zubbu","Zubbu"]].map(([id, name]) => ({id, name}));
+  return [1,2,3].map(i => ({id:"p" + i, name:"Player " + i})); }
+function sendToRally(){ try{ const d = JSON.parse(localStorage.getItem(RALLY_KEY)); const id = P(G.winner).id; if(!d || !d.players || !d.players.some(p => p.id === id)) return false;
+  d.today = d.today || {}; d.today[id] = (d.today[id] || 0) + 25; d.log = d.log || []; d.log.push({id, pts:25, label:"Ivy Deal win"}); localStorage.setItem(RALLY_KEY, JSON.stringify(d)); return true; }catch(e){ return false; } }
+
+/* ---------- Drawing cards ---------- */
+function band(card, id){
+  if(card.kind === "money") return `<span class="band" style="background:#bfe3c9"></span>`;
+  if(card.kind === "action") return `<span class="band" style="background:#1a98cb"></span>`;
+  const cols = card.colors === "any" ? ORDER : card.colors;
+  if(card.kind === "wild" && G && G.wcol[id] && !isMulti(id)) return `<span class="band">${[G.wcol[id], ...card.colors.filter(c => c !== G.wcol[id])].map((c, k) => `<i style="background:${COLORS[c].c};flex:${k ? 1 : 3}"></i>`).join("")}</span>`;
+  return `<span class="band">${cols.map(c => `<i style="background:${COLORS[c].c}"></i>`).join("")}</span>`;
+}
+function cardHTML(id, o = {}){
+  const c = C(id); let nm = c.name, nt = "";
+  if(c.kind === "prop"){ nt = COLORS[c.colors[0]].name; }
+  if(c.kind === "wild"){ nt = c.colors === "any" ? "Any colour. Worth nothing as money." : COLORS[c.colors[0]].name + " or " + COLORS[c.colors[1]].name; }
+  if(c.kind === "action"){ nt = ACT[c.act].note; }
+  if(c.kind === "rent"){ nt = c.colors === "any" ? "One player pays rent for any colour you own." : "Everyone pays rent for " + COLORS[c.colors[0]].name + " or " + COLORS[c.colors[1]].name + "."; }
+  const cls = ["dc", c.kind === "money" ? "money" : "", o.sm ? "sm" : "", o.sel ? "sel" : "", o.pick ? "pick" : "", o.picked ? "picked" : ""].join(" ");
+  const attrs = o.a ? `data-a="${o.a}" data-id="${id}"` : "";
+  return `<${o.a ? "button" : "div"} class="${cls}" ${attrs} aria-label="${esc(nm + ". " + nt + " Value " + cr(c.v))}">${band(c, id)}<span class="nm">${esc(nm)}</span>${o.sm ? "" : `<span class="nt">${esc(nt)}</span>`}${c.kind !== "money" ? `<span class="val">${cr(c.v)}</span>` : ""}</${o.a ? "button" : "div"}>`;
+}
+function setsHTML(pi, o = {}){
+  const cols = ORDER.filter(c => P(pi).sets[c]);
+  if(!cols.length) return `<p class="sub">No properties yet.</p>`;
+  return `<div class="sets">${cols.map(c => { const s = P(pi).sets[c], full = isComplete(pi, c);
+    return `<div class="set ${full ? "full" : ""}"><div class="hd"><span style="color:${COLORS[c].c === "#f2c94c" ? "#a07d00" : COLORS[c].c}">${COLORS[c].name}</span><span>${Math.min(s.cards.length, COLORS[c].size)}/${COLORS[c].size}${full ? " ✓" : ""}</span></div>
+      <div class="stack">${s.cards.map(id => cardHTML(id, {sm:true, a:o.pick && o.pick(id) ? o.a : (o.wild && C(id).kind === "wild" ? "wild" : null), pick:o.pick && o.pick(id), picked:o.picked && o.picked.includes(id)})).join("")}
+      ${[s.house, s.hotel].filter(b => b !== null).map(b => cardHTML(b, {sm:true, a:o.pick && o.pick(b) ? o.a : null, pick:o.pick && o.pick(b), picked:o.picked && o.picked.includes(b)})).join("")}</div>
+      <span class="sub" style="font-size:.7rem">Rent ${cr(rentValue(pi, c))}</span></div>`; }).join("")}</div>`;
+}
+const bankHTML = (pi, o = {}) => P(pi).bank.length ? `<div class="chipline">${P(pi).bank.map(id => o.a ? cardHTML(id, {sm:true, a:o.a, pick:true, picked:o.picked && o.picked.includes(id)}) : `<span class="mchip">${cr(C(id).v)}</span>`).join("")}</div>` : `<p class="sub">Bank is empty.</p>`;
+
+/* ---------- Choices for the selected card ---------- */
+function choices(){
+  const pi = G.turn, id = UI.sel; if(id === null || !P(pi).hand.includes(id)) return "";
+  const c = C(id), B = (label, a, extra = "", dis = false) => `<button class="btn ${a === "cancel" ? "" : "go"}" data-a="${a}" ${extra} ${dis ? "disabled" : ""}>${label}</button>`;
+  let h = `<div class="card alert"><h3>${esc(c.name)}</h3><div class="opts">`;
+  const can = canPlay();
+  if(!can) h += `<p class="sub">${G.plays <= 0 ? "You have used your 3 plays. Tap End turn." : "Finish the current action first."}</p>`;
+  if(c.kind === "prop") h += B("Put it on the table", "do-prop", "", !can);
+  if(c.kind === "wild") (c.colors === "any" ? ORDER : c.colors).forEach(col => h += B("Put it on the table as " + COLORS[col].name, "do-prop", `data-col="${col}"`, !can));
+  if(c.kind === "rent"){
+    const hasD = P(pi).hand.some(x => C(x).act === "double") && G.plays >= 2;
+    if(hasD) h += `<label class="pl" style="font-weight:600"><input type="checkbox" id="dbl" ${UI.dbl ? "checked" : ""}> Also play Double the Rent (uses 2 plays)</label>`;
+    const cols = (c.colors === "any" ? ORDER : c.colors).filter(col => rentValue(pi, col) > 0);
+    if(!cols.length) h += `<p class="sub">You need at least one ${c.colors === "any" ? "property" : COLORS[c.colors[0]].name + " or " + COLORS[c.colors[1]].name + " property"} to charge this rent.</p>`;
+    if(c.colors === "any"){
+      if(UI.step === null) cols.forEach(col => h += B("Charge " + COLORS[col].name + " rent: " + cr(rentValue(pi, col) * (UI.dbl ? 2 : 1)), "pick-col", `data-col="${col}"`, !can));
+      else others(pi).forEach(t => h += B(P(t).name + " pays " + cr(rentValue(pi, UI.step) * (UI.dbl ? 2 : 1)), "do-rent", `data-col="${UI.step}" data-t="${t}"`, !can));
+    } else cols.forEach(col => h += B("Everyone pays " + COLORS[col].name + " rent: " + cr(rentValue(pi, col) * (UI.dbl ? 2 : 1)), "do-rent", `data-col="${col}"`, !can));
+  }
+  if(c.kind === "action"){
+    const a = c.act;
+    if(a === "passgo") h += B("Play: draw 2 cards", "do-passgo", "", !can);
+    if(a === "birthday") h += B("Play: everyone pays you ₹2 Cr", "do-birthday", "", !can);
+    if(a === "debt") others(pi).forEach(t => h += B(P(t).name + " pays you ₹5 Cr", "do-debt", `data-t="${t}"`, !can));
+    if(a === "house" || a === "hotel"){ const ok = completeColors(pi).filter(col => col !== "railroad" && col !== "utility" && (a === "house" ? P(pi).sets[col].house === null : P(pi).sets[col].house !== null && P(pi).sets[col].hotel === null));
+      if(!ok.length) h += `<p class="sub">${a === "house" ? "You need a complete set (not railway or utility) without a house." : "You need a complete set that already has a house."}</p>`;
+      ok.forEach(col => h += B("Add to " + COLORS[col].name, "do-build", `data-col="${col}"`, !can)); }
+    if(a === "sly"){ const opts = others(pi).flatMap(t => looseProps(t).map(x => [t, x]));
+      if(!opts.length) h += `<p class="sub">Nobody has a property outside a complete set.</p>`;
+      opts.forEach(([t, x]) => h += B("Take " + C(x).name + " from " + P(t).name, "do-sly", `data-t="${t}" data-take="${x}"`, !can)); }
+    if(a === "forced"){
+      if(!looseProps(pi).length) h += `<p class="sub">You need a property of your own outside a complete set to swap.</p>`;
+      else if(UI.take === null){ const opts = others(pi).flatMap(t => looseProps(t).map(x => [t, x])); if(!opts.length) h += `<p class="sub">Nobody has a property outside a complete set.</p>`;
+        opts.forEach(([t, x]) => h += B("Take " + C(x).name + " from " + P(t).name, "pick-take", `data-t="${t}" data-take="${x}"`, !can)); }
+      else { h += `<p class="sub">Now pick what you give ${esc(P(UI.target).name)}:</p>`; looseProps(pi).forEach(x => h += B("Give " + C(x).name, "do-forced", `data-give="${x}"`, !can)); }
+    }
+    if(a === "breaker"){ const opts = others(pi).flatMap(t => completeColors(t).map(col => [t, col])); if(!opts.length) h += `<p class="sub">Nobody has a complete set yet.</p>`;
+      opts.forEach(([t, col]) => h += B("Take " + P(t).name + "'s " + COLORS[col].name + " set", "do-breaker", `data-t="${t}" data-col="${col}"`, !can)); }
+    if(a === "jsn") h += `<p class="sub">Keep this card. When someone plays an action against you, the game will ask if you want to use it.</p>`;
+    if(a === "double") h += `<p class="sub">Keep this card and play it together with a rent card.</p>`;
+  }
+  if(c.kind !== "prop" && c.kind !== "wild") h += `<button class="btn" data-a="do-bank" ${can ? "" : "disabled"}>Put in your bank as ${cr(c.v)}</button>`;
+  if(c.kind === "wild" && isMulti(id)) h += `<p class="sub">This card has no money value, so it cannot go in the bank.</p>`;
+  if(c.kind === "prop" || c.kind === "wild") h += `<p class="sub">Property cards can't go in the bank.</p>`;
+  return h + B("Cancel", "cancel") + `</div></div>`;
+}
+
+/* ---------- Screens ---------- */
+const RULES = `<div class="card"><h3>How to play</h3><div class="sub" style="display:grid;gap:6px;color:var(--ink)">
+  <p style="margin:0"><b>Goal:</b> be the first to collect <b>3 complete property sets</b> of different colours. The number on each set (like 2/3) shows how many cards it needs.</p>
+  <p style="margin:0"><b>Your turn:</b> you get 2 new cards (5 if your hand was empty). Then make up to <b>3 plays</b>: put money or action cards in your bank, put properties on the table, or play actions. Tap a card in your hand to see what it can do.</p>
+  <p style="margin:0"><b>Paying:</b> when you owe money, you pay from your bank and your properties, never from your hand. There is no change. If you can't cover it, you give everything you have.</p>
+  <p style="margin:0"><b>Rent:</b> charge rent for a colour you own. More cards in a set means higher rent. Houses and hotels on complete sets add more.</p>
+  <p style="margin:0"><b>Just Say No:</b> cancels an action against you. The other player can cancel it back with their own.</p>
+  <p style="margin:0"><b>Wild cards</b> can be moved between colours during your turn for free. Tap them on your table.</p>
+  <p style="margin:0">End your turn with no more than 7 cards in your hand.</p></div></div>`;
+function coverScreen(){ const q = P(G.cover);
+  return `<div class="cover"><p style="margin:0;font-size:1.15rem;opacity:.9">Pass to</p><h2>${esc(q.name)}</h2><p style="margin:0;font-size:1.1rem;max-width:30em">${esc(G.coverWhy)} Only ${esc(q.name)} should look now.</p>
+    <button class="btn" style="background:#fff;color:#14202b;font-size:1.2rem;min-height:68px;padding-inline:28px" data-a="reveal">I'm ${esc(q.name)}. Show my cards</button>
+    <p style="margin:0;opacity:.85">Complete sets: ${G.players.map((x, i) => esc(x.name) + " " + completeColors(i).length).join(" · ")}</p></div>`; }
+function side(){
+  const pi = G.turn, me = P(pi);
+  if(G.phase === "over") return `<div class="card turn"><h2>${esc(P(G.winner).name)} wins!</h2><p>3 complete sets: ${completeColors(G.winner).map(c => COLORS[c].name).join(", ")}.</p></div>
+    ${G.sent ? `<p class="sub">25 points added in Road Rally.</p>` : `<button class="btn amber" data-a="rally">Add 25 points to ${esc(P(G.winner).name)} in Road Rally</button>`}<button class="btn go" data-a="menu">New game</button>`;
+  const p = G.pending;
+  if(G.phase === "respond"){ const q = p.queue[0], who = p.decider === "target" ? q.t : p.from;
+    const what = p.kind === "pay" ? p.label + ": pay " + cr(q.amount) : p.label;
+    return `<div class="card turn"><h2>${esc(P(who).name)}, use Just Say No?</h2><p>${p.decider === "target" ? esc(P(p.from).name) + " played " + esc(what) + " on you." : esc(P(q.t).name) + " blocked your " + esc(p.label) + " with Just Say No."}</p></div>
+      <div class="row"><button class="btn amber" data-a="jsn-yes">Play Just Say No</button><button class="btn" data-a="jsn-no">${p.decider === "target" ? (p.kind === "pay" ? "No, I'll pay" : "No, let it happen") : "No, accept it"}</button></div>
+      <div class="card"><h3>${esc(P(who).name)}'s hand</h3><div class="hand">${P(who).hand.map(id => cardHTML(id, {sm:true})).join("")}</div></div>`; }
+  if(G.phase === "pay"){ const q = p.queue[0], t = q.t, sum = UI.picks.reduce((s, id) => s + C(id).v, 0), all = assets(t), total = all.reduce((s, id) => s + C(id).v, 0);
+    const ok = sum >= q.amount || (UI.picks.length === all.length) || sum >= total;
+    return `<div class="card turn"><h2>${esc(P(t).name)} pays ${cr(q.amount)}</h2><p>${esc(p.label)} from ${esc(P(p.from).name)}. Tap cards from your bank and table. Picked: ${cr(sum)}.${total < q.amount ? " You don't have enough, so you give everything." : ""}</p></div>
+      <div class="card"><h3>Your bank</h3>${bankHTML(t, {a:"pick", picked:UI.picks})}</div>
+      <div class="card"><h3>Your properties</h3>${setsHTML(t, {a:"pick", pick:() => true, picked:UI.picks})}</div>
+      <button class="btn go" data-a="do-pay" ${ok ? "" : "disabled"}>Pay ${cr(sum)}</button>
+      ${total < q.amount ? `<button class="btn" data-a="pick-all">Pick everything</button>` : ""}<p class="sub">No change is given, so try to pay close to the amount.</p>`; }
+  if(G.phase === "discard"){ const extra = me.hand.length - 7;
+    return `<div class="card turn"><h2>Too many cards</h2><p>You can keep 7. Tap ${extra} card${extra > 1 ? "s" : ""} to throw away.</p></div>
+      <div class="hand">${me.hand.map(id => cardHTML(id, {a:"pick", pick:true, picked:UI.picks.includes(id)})).join("")}</div>
+      <button class="btn go" data-a="do-discard" ${UI.picks.length === extra ? "" : "disabled"}>Throw away ${UI.picks.length} of ${extra}</button>`; }
+  return `<div class="card turn"><h2>${esc(me.name)}'s turn</h2><p>${G.plays} play${G.plays === 1 ? "" : "s"} left · ${completeColors(pi).length} of 3 sets</p><p style="opacity:.9;font-size:.9rem">${G.plays ? "Tap a card in your hand to play it." : "Tap End turn."}</p></div>
+    ${choices()}
+    <div class="card"><h3>Your hand (${me.hand.length})</h3><div class="hand">${me.hand.map(id => cardHTML(id, {a:"sel", sel:UI.sel === id})).join("")}</div></div>
+    <button class="btn go" data-a="end">End turn</button>
+    ${UI.wild !== undefined && UI.wild !== null ? wildMove() : ""}`;
+}
+function wildMove(){ const id = UI.wild, cols = (isMulti(id) ? ORDER : C(id).colors).filter(c => c !== G.wcol[id]);
+  return `<div class="card alert"><h3>Move this wild card</h3><p class="sub">Free, doesn't use a play.</p><div class="opts">${cols.map(c => `<button class="btn go" data-a="do-wild" data-col="${c}">Move to ${COLORS[c].name}</button>`).join("")}<button class="btn" data-a="cancel">Cancel</button></div></div>`; }
+function table(){
+  const pi = G.phase === "pay" || G.phase === "respond" ? G.holder : G.turn;
+  return `${rulesOpen ? RULES + `<button class="btn" data-a="rules">Close the rules</button>` : ""}
+    ${G.players.map((q, i) => i === pi ? "" : `<div class="card opp"><h3><span>${esc(q.name)}</span><span class="sub">${completeColors(i).length} of 3 sets · bank ${cr(bankTotal(i))} · ${q.hand.length} in hand</span></h3>${setsHTML(i)}</div>`).join("")}
+    <div class="card" style="border:2px solid var(--pine)"><h3>${esc(P(pi).name)}'s table</h3>${setsHTML(pi, G.phase === "play" && pi === G.turn ? {wild:true} : {})}
+      <h3>Bank: ${cr(bankTotal(pi))}</h3>${bankHTML(pi)}</div>
+    <div class="card"><h3>What happened</h3><p class="sub">${G.log.slice(0, 5).map(esc).join("<br>")}</p></div>`;
+}
+function setupScreen(){
+  setupPlayers = setupPlayers || rallyPlayers().map((p, i) => ({...p, on:i < 5}));
+  const n = setupPlayers.filter(p => p.on).length;
+  return `<div class="setup"><h2>Ivy Deal</h2><p class="sub">A fast property card game for 2 to 5 players. Collect 3 complete sets to win. Pass the phone or tablet around.</p>
+    <div class="card"><h3>Who's playing?</h3>${setupPlayers.map((p, i) => `<label class="pl"><input type="checkbox" class="pon" data-i="${i}" ${p.on ? "checked" : ""}><span>${esc(p.name)}</span></label>`).join("")}</div>
+    <label class="pl card" style="flex-direction:row"><input type="checkbox" id="hideOpt" ${setupHide ? "checked" : ""}><span><b>Hide cards between turns</b><br><span class="sub">Shows a "Pass to" screen whenever the device changes hands.</span></span></label>
+    <button class="btn go" data-a="start" ${n >= 2 && n <= 5 ? "" : "disabled"}>Start with ${n} players</button>${n < 2 || n > 5 ? `<p class="sub">Tick 2 to 5 players.</p>` : ""}
+    ${G && G.phase !== "over" ? `<button class="btn" data-a="resume">Back to the current game</button>` : ""}
+    ${RULES}<p class="ivy">Ivy Deal is a fan-made card game in the style of classic property card games, by Ivy Professional School. Built with AI. Not affiliated with any game publisher.</p></div>`;
+}
+function render(){
+  $("#talkBtn").textContent = talk ? "Voice on" : "Voice off";
+  $("#app").innerHTML = menuOpen || !G ? setupScreen() : (G.cover !== null && G.cover !== undefined && P(G.cover) ? coverScreen() : `<main><div class="col">${table()}</div><div class="col side">${side()}</div></main>`);
+  save();
+}
+let toastT; function toast(t){ const el = $("#toast"); el.textContent = t; el.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove("show"), 1700); }
+const resetUI = () => { UI = {sel:null, step:null, picks:[], dbl:false, target:null, take:null, wild:null}; };
+
+/* ---------- Input ---------- */
+if(typeof document !== "undefined" && document.addEventListener){
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-a]"); if(!b || b.disabled) return;
+  const d = b.dataset, id = d.id !== undefined ? +d.id : null, col = d.col, t = d.t !== undefined ? +d.t : null;
+  let ok = true;
+  switch(d.a){
+    case "sel": UI.sel = UI.sel === id ? null : id; UI.step = null; UI.take = null; UI.wild = null; break;
+    case "wild": UI.wild = UI.wild === id ? null : id; UI.sel = null; break;
+    case "cancel": resetUI(); break;
+    case "pick": UI.picks = UI.picks.includes(id) ? UI.picks.filter(x => x !== id) : [...UI.picks, id]; break;
+    case "pick-all": UI.picks = assets(G.pending.queue[0].t); break;
+    case "pick-col": UI.step = col; break;
+    case "pick-take": UI.take = +d.take; UI.target = t; break;
+    case "do-bank": ok = DO.bank(UI.sel); resetUI(); break;
+    case "do-prop": ok = DO.prop(UI.sel, col); resetUI(); break;
+    case "do-wild": ok = DO.moveWild(UI.wild, col); resetUI(); break;
+    case "do-build": ok = DO.build(UI.sel, col); resetUI(); break;
+    case "do-passgo": ok = DO.passgo(UI.sel); resetUI(); break;
+    case "do-birthday": ok = DO.birthday(UI.sel); resetUI(); break;
+    case "do-debt": ok = DO.debt(UI.sel, t); resetUI(); break;
+    case "do-rent": ok = DO.rent(UI.sel, col, t, UI.dbl); resetUI(); break;
+    case "do-sly": ok = DO.sly(UI.sel, t, +d.take); resetUI(); break;
+    case "do-forced": ok = DO.forced(UI.sel, UI.target, UI.take, +d.give); resetUI(); break;
+    case "do-breaker": ok = DO.breaker(UI.sel, t, col); resetUI(); break;
+    case "do-pay": ok = pay(UI.picks); resetUI(); break;
+    case "do-discard": ok = discardCards(UI.picks); resetUI(); break;
+    case "jsn-yes": ok = respond(true); resetUI(); break;
+    case "jsn-no": ok = respond(false); resetUI(); break;
+    case "end": ok = endTurn(); resetUI(); break;
+    case "reveal": G.cover = null; window.scrollTo(0, 0); break;
+    case "rules": rulesOpen = !rulesOpen; break;
+    case "talk": talk = !talk; break;
+    case "menu": menuOpen = true; setupPlayers = null; break;
+    case "resume": menuOpen = false; break;
+    case "start": { const ps = setupPlayers.filter(p => p.on); if(ps.length < 2 || ps.length > 5) break; newGame(ps, setupHide); resetUI(); menuOpen = false; say("Ivy Deal. " + ps[0].name + " starts."); break; }
+    case "rally": if(sendToRally()){ G.sent = true; toast("25 points added in Road Rally"); } else toast("Open Road Rally once on this device first"); break;
+  }
+  if(ok === false) toast("That move isn't allowed right now");
+  render();
+});
+document.addEventListener("change", e => { const t = e.target;
+  if(t.id === "dbl"){ UI.dbl = t.checked; render(); }
+  if(t.id === "hideOpt") setupHide = t.checked;
+  if(t.classList.contains("pon")){ setupPlayers[+t.dataset.i].on = t.checked; render(); } });
+resetUI(); load(); if(!G) menuOpen = true; render();
+if("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+}
+</script>
+</body>
+</html>

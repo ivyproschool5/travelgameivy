@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b5394">
+<title>Ludo</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Poppins:wght@400;600;700&display=swap">
+<style>
+/* Layout: board first (square, as large as the screen allows), turn panel beside it on tablets and below it on phones.
+   Ivy deep blue and white for the app; the four classic Ludo colours only on the board. */
+:root{
+  --bg:#ffffff; --surface:#ffffff; --surface-2:#eaf4fa; --ink:#14202b; --muted:#526a7d; --line:#d3e3ee;
+  --pine:#0b5394; --pine-ink:#ffffff; --sky:#1a98cb; --cap:#f7a61b; --cap-ink:#14202b; --bad:#b0422d; --good:#1d7a4b;
+  --red:#d83a3a; --green:#2e9e4f; --yellow:#f2b705; --blue:#1f6fd1;
+  --display:"Montserrat","Open Sans",system-ui,sans-serif; --body:"Poppins","Open Sans",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --bg:#0b1726; --surface:#12233a; --surface-2:#1a3150; --ink:#eaf2f8; --muted:#9fb4c6; --line:#244263; --pine:#3aaee0; --pine-ink:#04121f; color-scheme:dark; }}
+:root[data-theme="dark"]{ --bg:#0b1726; --surface:#12233a; --surface-2:#1a3150; --ink:#eaf2f8; --muted:#9fb4c6; --line:#244263; --pine:#3aaee0; --pine-ink:#04121f; color-scheme:dark; }
+*{box-sizing:border-box}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45;-webkit-tap-highlight-color:transparent}
+button,input,select{font:inherit;color:inherit} button{cursor:pointer}
+:focus-visible{outline:3px solid var(--cap);outline-offset:2px}
+[hidden]{display:none!important}
+header{background:#0b5394;color:#fff;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-block:10px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header h1{font-family:var(--display);font-weight:800;font-size:1.35rem;margin:0;flex:1}
+.hbtn{background:rgba(255,255,255,.14);border:0;color:#fff;border-radius:10px;padding:8px 12px;font-weight:600;text-decoration:none;font-size:.88rem}
+.logo{background:#fff;border-radius:8px;padding:3px 6px;line-height:0} .logo img{height:28px;width:auto;display:block}
+main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start;padding-block:14px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));max-width:1200px;margin:0 auto}
+@media (max-width: 860px){ main{grid-template-columns:1fr} }
+#board{width:100%;max-width:min(100%, calc(100vh - 110px));aspect-ratio:1;display:block;margin:0 auto;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+.panel{display:flex;flex-direction:column;gap:12px;min-width:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.turn{background:var(--pc);color:#fff;border:0} .turn.light{color:#14202b}
+.turn h2{font-family:var(--display);font-weight:800;font-size:1.5rem;margin:0;line-height:1.1} .turn p{margin:0}
+h3{font-family:var(--display);font-weight:700;font-size:1.05rem;margin:0}
+.sub{color:var(--muted);margin:0;font-size:.92rem}
+.btn{border:0;border-radius:12px;padding:12px 14px;min-height:52px;font-weight:700;background:var(--surface-2);color:var(--ink)}
+.btn.go{background:var(--pine);color:var(--pine-ink)} .btn.amber{background:var(--cap);color:var(--cap-ink)}
+.btn:disabled{opacity:.4;cursor:default}
+.row{display:flex;gap:8px;flex-wrap:wrap} .row .btn{flex:1 1 0}
+.dicewrap{display:flex;align-items:center;gap:14px}
+.die{width:72px;height:72px;border-radius:16px;background:#fff;border:3px solid #0b5394;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:9px;flex:none}
+.die i{width:12px;height:12px;border-radius:50%;background:#14202b;place-self:center;visibility:hidden}
+.die.rolling{animation:shake .5s ease}
+@keyframes shake{25%{transform:rotate(-14deg)}50%{transform:rotate(12deg)}75%{transform:rotate(-6deg)}}
+.seats{display:grid;gap:8px}
+.seat{display:flex;align-items:center;gap:10px;font-weight:600}
+.seat .dot{width:16px;height:16px;border-radius:50%;background:var(--pc);flex:none}
+.seat .home{margin-left:auto;font-family:var(--display);font-weight:800}
+.setup{max-width:640px;margin:20px auto;display:flex;flex-direction:column;gap:14px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.setup h2{font-family:var(--display);font-weight:800;font-size:1.8rem;margin:0}
+.pl{display:flex;align-items:center;gap:10px} .pl input[type=checkbox]{width:28px;height:28px;accent-color:#0b5394}
+.ivy{font-size:.85rem;color:var(--muted)} .ivy a{color:var(--pine);font-weight:700}
+.tok{cursor:pointer} .tok.can{animation:pulse .9s ease-in-out infinite}
+@keyframes pulse{50%{transform:translateY(-.12px) scale(1.12)}}
+.toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 70px);transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;font-weight:700;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9;max-width:90vw;text-align:center}
+.toast.show{opacity:1}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Ludo</h1>
+  <button class="hbtn" data-a="rules">Rules</button>
+  <button class="hbtn" id="talkBtn" data-a="talk">Voice on</button>
+  <button class="hbtn" data-a="menu">New game</button>
+  <a class="hbtn" href="./">Road Rally</a>
+  <a class="logo" href="https://ivyproschool.com/" target="_blank" rel="noopener" aria-label="Ivy Professional School website"><img src="ivy-logo.png" alt="Ivy Professional School"></a>
+</header>
+<div id="app"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+/* ---------- Board geometry: 15 x 15 grid, 52-square loop, four 5-square home columns ---------- */
+const COLS = [
+  {key:"red",    name:"Red",    c:"#d83a3a", start:0,  yard:[0,0],  home:[[7,1],[7,2],[7,3],[7,4],[7,5]], fin:[6.8,7.5]},
+  {key:"green",  name:"Green",  c:"#2e9e4f", start:13, yard:[0,9],  home:[[1,7],[2,7],[3,7],[4,7],[5,7]], fin:[7.5,6.8]},
+  {key:"yellow", name:"Yellow", c:"#f2b705", start:26, yard:[9,9],  home:[[7,13],[7,12],[7,11],[7,10],[7,9]], fin:[8.2,7.5]},
+  {key:"blue",   name:"Blue",   c:"#1f6fd1", start:39, yard:[9,0],  home:[[13,7],[12,7],[11,7],[10,7],[9,7]], fin:[7.5,8.2]}
+];
+const TRACK = [];
+(() => { const add = (r, c) => TRACK.push([r, c]);
+  for(let c = 1; c <= 5; c++) add(6, c); for(let r = 5; r >= 0; r--) add(r, 6); add(0, 7); add(0, 8);
+  for(let r = 1; r <= 5; r++) add(r, 8); for(let c = 9; c <= 14; c++) add(6, c); add(7, 14); add(8, 14);
+  for(let c = 13; c >= 9; c--) add(8, c); for(let r = 9; r <= 14; r++) add(r, 8); add(14, 7); add(14, 6);
+  for(let r = 13; r >= 9; r--) add(r, 6); for(let c = 5; c >= 0; c--) add(8, c); add(7, 0); add(6, 0); })();
+const SAFE = new Set([0, 8, 13, 21, 26, 34, 39, 47]);
+const FINISH = 56, LAST_TRACK = 50;
+const SEATS = {2:[0,2], 3:[0,1,2], 4:[0,1,2,3]};
+
+/* ---------- Helpers ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const PUBLIC = typeof location !== "undefined" && /\/play\//.test(location.pathname);
+const RALLY_KEY = PUBLIC ? "ivy-rr-v1" : "himachal-rally-v1", KEY = PUBLIC ? "ivy-ludo-v1" : "family-ludo-v1";
+const absOf = (ci, p) => (COLS[ci].start + p) % 52;
+
+/* ---------- State ---------- */
+let G = null, menuOpen = false, setupPlayers = null, fillBots = true, rulesOpen = false, busy = false;
+function newGame(people){
+  const n = people.length, seats = SEATS[n];
+  G = {v:1, players:people.map((p, i) => ({id:p.id, name:p.name, bot:!!p.bot, col:seats[i], tok:[-1,-1,-1,-1], done:false})),
+    turn:0, phase:"roll", die:null, sixes:0, rank:[], log:[], over:false, sent:false};
+  log("New game. " + G.players[0].name + " goes first.");
+}
+const P = i => G.players[i];
+const col = i => COLS[P(i).col];
+function log(t){ G.log.unshift(t); G.log.length = Math.min(G.log.length, 30); }
+
+/* ---------- Rules ---------- */
+function target(pi, t, d){ const p = P(pi).tok[t]; if(p === FINISH) return null; if(p === -1) return d === 6 ? 0 : null; return p + d <= FINISH ? p + d : null; }
+const legal = (pi, d) => [0,1,2,3].filter(t => target(pi, t, d) !== null);
+function victims(pi, np){
+  if(np > LAST_TRACK) return [];
+  const a = absOf(P(pi).col, np); if(SAFE.has(a)) return [];
+  const out = []; G.players.forEach((q, qi) => { if(qi === pi) return; q.tok.forEach((p, t) => { if(p >= 0 && p <= LAST_TRACK && absOf(q.col, p) === a) out.push([qi, t]); }); });
+  return out;
+}
+function nextTurn(){
+  if(G.over) return;
+  let i = G.turn; for(let k = 0; k < G.players.length; k++){ i = (i + 1) % G.players.length; if(!P(i).done) break; }
+  G.turn = i; G.sixes = 0; G.phase = "roll"; G.die = null;
+}
+function roll(forced){
+  if(G.phase !== "roll" || G.over) return null;
+  const d = forced || 1 + Math.floor(Math.random() * 6); G.die = d;
+  const pi = G.turn;
+  if(d === 6) G.sixes++;
+  if(G.sixes === 3){ log(P(pi).name + " rolled three 6s in a row. Turn over."); say("Three sixes. Turn over."); nextTurn(); return d; }
+  const moves = legal(pi, d);
+  if(!moves.length){ log(P(pi).name + " rolled " + d + ". No move."); if(d === 6) G.phase = "roll"; else nextTurn(); return d; }
+  G.phase = "move"; return d;
+}
+/* Moves a token and applies captures, finishing and extra rolls. Returns {captured, finished, extra}. */
+function move(t){
+  const pi = G.turn, d = G.die; if(G.phase !== "move") return null;
+  const np = target(pi, t, d); if(np === null) return null;
+  P(pi).tok[t] = np;
+  const v = victims(pi, np);
+  v.forEach(([qi, qt]) => { P(qi).tok[qt] = -1; });
+  if(v.length){ log(P(pi).name + " cut " + v.map(([qi]) => P(qi).name).join(" and ") + "!"); say(P(pi).name + " cut " + P(v[0][0]).name + "! Roll again."); }
+  const finished = np === FINISH;
+  if(finished){ log(P(pi).name + " got a token home."); }
+  if(P(pi).tok.every(p => p === FINISH)){
+    P(pi).done = true; G.rank.push(pi); log(P(pi).name + " finished in place " + G.rank.length + "!"); say(P(pi).name + " finishes in place " + G.rank.length + "!");
+    const left = G.players.map((q, i) => i).filter(i => !P(i).done);
+    if(left.length <= 1){ if(left.length) G.rank.push(left[0]); G.over = true; G.phase = "over"; return {captured:v.length, finished, extra:false}; }
+    nextTurn(); return {captured:v.length, finished, extra:false};
+  }
+  const extra = d === 6 || v.length > 0 || finished;
+  if(extra){ G.phase = "roll"; G.die = null; if(!(d === 6)) G.sixes = 0; } else nextTurn();
+  return {captured:v.length, finished, extra};
+}
+/* Computer player: cut > reach home > leave the yard > escape danger > move the furthest token */
+function botChoice(pi, d){
+  const opts = legal(pi, d); if(opts.length === 1) return opts[0];
+  const danger = (np) => { if(np > LAST_TRACK) return false; const a = absOf(P(pi).col, np); if(SAFE.has(a)) return false;
+    return G.players.some((q, qi) => qi !== pi && q.tok.some(p => p >= 0 && p <= LAST_TRACK && ((a - absOf(q.col, p) + 52) % 52) >= 1 && ((a - absOf(q.col, p) + 52) % 52) <= 6)); };
+  const score = t => { const p = P(pi).tok[t], np = target(pi, t, d); let s = 0;
+    if(victims(pi, np).length) s += 100; if(np === FINISH) s += 80; if(p === -1) s += 60;
+    if(p >= 0 && danger(p) && !danger(np)) s += 40; if(danger(np)) s -= 30; if(np > LAST_TRACK) s += 20; s += np / 10; return s; };
+  return opts.sort((a, b) => score(b) - score(a))[0];
+}
+
+/* ---------- Voice and saving ---------- */
+const TTS = typeof speechSynthesis !== "undefined"; let voice = null, talk = true;
+function pickVoice(){ if(!TTS) return; const vs = speechSynthesis.getVoices();
+  voice = vs.find(v => /^en[-_]US/i.test(v.lang) && /natural|enhanced|premium|online/i.test(v.name)) || vs.find(v => /^en[-_]US/i.test(v.lang)) || vs.find(v => /^en/i.test(v.lang)) || null; }
+if(TTS){ pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
+function say(t){ if(!TTS || !talk || typeof SpeechSynthesisUtterance === "undefined") return; try{ const u = new SpeechSynthesisUtterance(t); if(voice){ u.voice = voice; u.lang = voice.lang; } u.rate = .95; speechSynthesis.speak(u); }catch(e){} }
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify({G, talk})); }catch(e){} }
+function load(){ try{ const d = JSON.parse(localStorage.getItem(KEY)); if(d){ talk = d.talk !== false; if(d.G && d.G.v === 1) G = d.G; } }catch(e){} }
+function rallyPlayers(){
+  try{ const d = JSON.parse(localStorage.getItem(RALLY_KEY)); if(d && d.players && d.players.length) return d.players.map(p => ({id:p.id, name:p.name})); }catch(e){}
+  if(!PUBLIC) return [["mom","Mom"],["dad","Dad"],["kippi","Kippi"],["zubbu","Zubbu"]].map(([id, name]) => ({id, name}));
+  return [1,2].map(i => ({id:"p" + i, name:"Player " + i}));
+}
+function sendToRally(){
+  try{ const d = JSON.parse(localStorage.getItem(RALLY_KEY)); if(!d || !d.players) return false;
+    const pts = [25, 10]; let any = false;
+    G.rank.slice(0, 2).forEach((pi, k) => { const id = P(pi).id; if(P(pi).bot || !d.players.some(p => p.id === id)) return;
+      d.today = d.today || {}; d.today[id] = (d.today[id] || 0) + pts[k]; d.log = d.log || []; d.log.push({id, pts:pts[k], label:"Ludo place " + (k + 1)}); any = true; });
+    localStorage.setItem(RALLY_KEY, JSON.stringify(d)); return any; }catch(e){ return false; }
+}
+
+/* ---------- Drawing ---------- */
+const STAR = (x, y, r) => { let d = ""; for(let i = 0; i < 10; i++){ const a = Math.PI / 5 * i - Math.PI / 2, rr = i % 2 ? r * .45 : r; d += (i ? "L" : "M") + (x + rr * Math.cos(a)).toFixed(3) + " " + (y + rr * Math.sin(a)).toFixed(3); } return d + "Z"; };
+function tokXY(pi, t){
+  const c = col(pi), p = P(pi).tok[t];
+  if(p === -1){ const [r0, c0] = c.yard; return [c0 + (t % 2 ? 4 : 2), r0 + (t < 2 ? 2 : 4)]; }
+  if(p === FINISH) return [c.fin[0] + (t % 2 ? .25 : -.25) * (c.key === "green" || c.key === "blue" ? 1 : 0), c.fin[1] + (t < 2 ? -.25 : .25) * (c.key === "red" || c.key === "yellow" ? 1 : 0)];
+  const [r, cc] = p <= LAST_TRACK ? TRACK[absOf(P(pi).col, p)] : c.home[p - LAST_TRACK - 1];
+  return [cc + .5, r + .5];
+}
+function drawBoard(){
+  let s = `<rect x="0" y="0" width="15" height="15" fill="#fff"/>`;
+  const used = new Set(G.players.map(p => p.col));
+  COLS.forEach((c, ci) => { const [r0, c0] = c.yard;
+    s += `<rect x="${c0}" y="${r0}" width="6" height="6" fill="${c.c}" opacity="${used.has(ci) ? 1 : .35}"/><rect x="${c0 + .8}" y="${r0 + .8}" width="4.4" height="4.4" rx=".4" fill="#fff"/>`;
+    [[2,2],[4,2],[2,4],[4,4]].forEach(([dx, dy]) => s += `<circle cx="${c0 + dx}" cy="${r0 + dy}" r=".62" fill="${c.c}" opacity=".25"/>`);
+    c.home.forEach(([r, cc]) => s += `<rect x="${cc}" y="${r}" width="1" height="1" fill="${c.c}" stroke="#9aa7b2" stroke-width=".03"/>`);
+  });
+  TRACK.forEach(([r, c], i) => { const st = COLS.find(k => k.start === i);
+    s += `<rect x="${c}" y="${r}" width="1" height="1" fill="${st ? st.c : "#fff"}" stroke="#9aa7b2" stroke-width=".03"/>`;
+    if(SAFE.has(i)) s += `<path d="${STAR(c + .5, r + .5, .36)}" fill="${st ? "#fff" : "#c3ccd4"}"/>`; });
+  s += `<polygon points="6,6 7.5,7.5 6,9" fill="${COLS[0].c}"/><polygon points="6,6 9,6 7.5,7.5" fill="${COLS[1].c}"/><polygon points="9,6 9,9 7.5,7.5" fill="${COLS[2].c}"/><polygon points="6,9 9,9 7.5,7.5" fill="${COLS[3].c}"/>`;
+  const can = G.phase === "move" && !P(G.turn).bot && !busy ? legal(G.turn, G.die) : [];
+  const spots = {}; const items = [];
+  G.players.forEach((q, pi) => q.tok.forEach((p, t) => { const [x, y] = tokXY(pi, t); const k = x.toFixed(2) + "," + y.toFixed(2); (spots[k] = spots[k] || []).push(1); items.push({pi, t, x, y, k}); }));
+  const seen = {};
+  items.sort((a, b) => (a.pi === G.turn) - (b.pi === G.turn)).forEach(it => {
+    const n = spots[it.k].length, idx = (seen[it.k] = (seen[it.k] || 0) + 1) - 1;
+    const off = n > 1 && P(it.pi).tok[it.t] !== -1 ? (idx - (n - 1) / 2) * .22 : 0;
+    const x = it.x + off, y = it.y - (n > 1 ? off * .4 : 0), c = col(it.pi).c, isCan = it.pi === G.turn && can.includes(it.t);
+    s += `<g class="tok ${isCan ? "can" : ""}" data-t="${isCan ? it.t : ""}" style="transform-origin:${x}px ${y}px">
+      <circle cx="${x}" cy="${y + .08}" r=".36" fill="rgba(0,0,0,.25)"/><circle cx="${x}" cy="${y}" r=".36" fill="${c}" stroke="${isCan ? "#14202b" : "#fff"}" stroke-width="${isCan ? .09 : .07}"/>
+      <circle cx="${x}" cy="${y}" r=".15" fill="#fff" opacity=".85"/>${isCan ? `<circle cx="${x}" cy="${y}" r=".75" fill="transparent"/>` : ""}</g>`;
+  });
+  return `<svg id="board" viewBox="0 0 15 15" role="img" aria-label="Ludo board">${s}</svg>`;
+}
+const PIPS = {1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
+const dieHTML = (d, rolling) => `<div class="die ${rolling ? "rolling" : ""}">${[...Array(9)].map((_, i) => `<i style="${d && PIPS[d].includes(i) ? "visibility:visible" : ""}"></i>`).join("")}</div>`;
+const RULES = `<div class="card"><h3>How to play</h3><div class="sub" style="display:grid;gap:6px;color:var(--ink)">
+  <p style="margin:0">Get all 4 of your tokens around the board and into the centre before everyone else.</p>
+  <p style="margin:0">Roll a <b>6</b> to bring a token out. A 6 also gives you another roll. Three 6s in a row ends your turn.</p>
+  <p style="margin:0">Landing on another player's token <b>cuts</b> it: it goes back home and you roll again.</p>
+  <p style="margin:0">Squares with a <b>star</b> and the coloured start squares are safe. Nobody can be cut there.</p>
+  <p style="margin:0">You need the exact number to reach the centre. Getting a token in gives you another roll.</p></div></div>`;
+function panel(){
+  if(G.over){
+    return `<div class="card turn" style="--pc:#0b5394"><h2>${esc(P(G.rank[0]).name)} wins!</h2></div>
+      <div class="card"><h3>Final places</h3>${G.rank.map((pi, k) => `<div class="seat" style="--pc:${col(pi).c}"><span class="dot"></span>${k + 1}. ${esc(P(pi).name)}${P(pi).bot ? " (computer)" : ""}</div>`).join("")}</div>
+      ${G.sent ? `<p class="sub">Points added in Road Rally.</p>` : `<button class="btn amber" data-a="rally">Add points in Road Rally (25 for 1st, 10 for 2nd)</button>`}
+      <button class="btn go" data-a="menu">New game</button>`;
+  }
+  const pi = G.turn, c = col(pi), me = P(pi), light = c.key === "yellow";
+  const hint = me.bot ? "Computer is playing…" : G.phase === "roll" ? "Tap Roll." : "Tap a token that is bouncing to move it.";
+  let h = `${rulesOpen ? RULES + `<button class="btn" data-a="rules">Close the rules</button>` : ""}
+    <div class="card turn ${light ? "light" : ""}" style="--pc:${c.c}"><h2>${esc(me.name)}${me.bot ? " (computer)" : ""}</h2><p>${c.name} · ${hint}</p></div>
+    <div class="card"><div class="dicewrap">${dieHTML(G.die, false)}
+      <button class="btn amber" style="flex:1;min-height:72px;font-size:1.3rem" data-a="roll" ${G.phase === "roll" && !me.bot && !busy ? "" : "disabled"}>Roll</button></div></div>
+    <div class="card"><h3>Tokens home</h3><div class="seats">${G.players.map((q, i) => `<div class="seat" style="--pc:${COLS[q.col].c}"><span class="dot"></span>${esc(q.name)}${q.bot ? " (computer)" : ""}${i === G.turn ? " ◀" : ""}<span class="home">${q.tok.filter(p => p === FINISH).length}/4</span></div>`).join("")}</div></div>
+    <div class="card"><h3>What happened</h3><p class="sub">${G.log.slice(0, 4).map(esc).join("<br>")}</p></div>`;
+  return h;
+}
+function setupScreen(){
+  setupPlayers = setupPlayers || rallyPlayers().map((p, i) => ({...p, on:i < 4}));
+  const n = setupPlayers.filter(p => p.on).length, total = n + (fillBots ? Math.max(0, (n <= 1 ? 2 : n) - n) : 0);
+  const seats = fillBots && n < 4 ? 4 : n;
+  return `<div class="setup"><h2>Ludo</h2><p class="sub">Indian Ludo for 2 to 4. Pass the phone or tablet around, or play against the computer.</p>
+    <div class="card"><h3>Who's playing?</h3>${setupPlayers.map((p, i) => `<label class="pl"><input type="checkbox" class="pon" data-i="${i}" ${p.on ? "checked" : ""}><span>${esc(p.name)}</span></label>`).join("")}
+      <label class="pl"><input type="checkbox" id="bots" ${fillBots ? "checked" : ""}><span>Fill empty colours with computer players</span></label></div>
+    <button class="btn go" data-a="start" ${n >= 1 && n <= 4 && (n >= 2 || fillBots) ? "" : "disabled"}>Start: ${n} ${n === 1 ? "player" : "players"}${fillBots && n < 4 ? " + " + (4 - n) + " computer" : ""}</button>
+    ${n > 4 ? `<p class="sub">Tick up to 4 players.</p>` : n === 1 && !fillBots ? `<p class="sub">Tick 2 players, or let the computer play the other colours.</p>` : ""}
+    ${G && !G.over ? `<button class="btn" data-a="resume">Back to the current game</button>` : ""}
+    ${RULES}<p class="ivy">Made with AI by Ivy Professional School. <a href="https://ivyproschool.com/" target="_blank" rel="noopener">ivyproschool.com</a></p></div>`;
+}
+function render(){
+  $("#talkBtn").textContent = talk ? "Voice on" : "Voice off";
+  $("#app").innerHTML = menuOpen || !G ? setupScreen() : `<main><div>${drawBoard()}</div><div class="panel">${panel()}</div></main>`;
+  save(); botTick();
+}
+let toastT; function toast(t){ const el = $("#toast"); el.textContent = t; el.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove("show"), 1700); }
+
+/* ---------- Turn flow with gentle animation ---------- */
+function doRoll(){
+  if(busy || !G || G.phase !== "roll") return;
+  busy = true; const pi = G.turn; render();
+  const dw = document.querySelector(".die"); if(dw) dw.classList.add("rolling");
+  setTimeout(() => { const d = roll(); busy = false;
+    if(d !== null){ if(G.phase === "move" || G.turn !== pi || d === 6) say(P(pi).name + " rolled " + d + "."); }
+    if(G.phase === "move"){ const opts = legal(G.turn, G.die); if(opts.length === 1 && !P(G.turn).bot){ busy = true; render(); setTimeout(() => { busy = false; doMove(opts[0]); }, 550); return; } }
+    render(); }, 450);
+}
+function doMove(t){
+  if(busy || !G || G.phase !== "move") return;
+  const pi = G.turn, from = P(pi).tok[t], to = target(pi, t, G.die); if(to === null) return;
+  busy = true; const steps = from === -1 ? [0] : Array.from({length:to - from}, (_, k) => from + k + 1); let k = 0;
+  const hop = () => { P(pi).tok[t] = steps[k]; $("#app").querySelector("#board").outerHTML = drawBoard(); k++;
+    if(k < steps.length) setTimeout(hop, 110);
+    else { P(pi).tok[t] = from; busy = false; const r = move(t); if(r && r.finished && !G.over) say("Token home! Roll again."); render(); } };
+  hop();
+}
+let botTimer = null;
+function botTick(){
+  clearTimeout(botTimer); if(!G || G.over || menuOpen || busy || !P(G.turn).bot) return;
+  botTimer = setTimeout(() => { if(G.phase === "roll") doRoll(); else if(G.phase === "move") doMove(botChoice(G.turn, G.die)); }, G.phase === "roll" ? 700 : 450);
+}
+
+/* ---------- Input ---------- */
+if(typeof document !== "undefined" && document.addEventListener){
+document.addEventListener("click", e => {
+  const tk = e.target.closest(".tok[data-t]"); if(tk && tk.dataset.t !== ""){ doMove(+tk.dataset.t); return; }
+  const b = e.target.closest("[data-a]"); if(!b || b.disabled) return;
+  switch(b.dataset.a){
+    case "roll": doRoll(); return;
+    case "rules": rulesOpen = !rulesOpen; break;
+    case "talk": talk = !talk; break;
+    case "menu": menuOpen = true; setupPlayers = null; break;
+    case "resume": menuOpen = false; break;
+    case "start": { const ps = setupPlayers.filter(p => p.on); if(!ps.length || ps.length > 4) break;
+      const people = ps.map(p => ({id:p.id, name:p.name}));
+      if(fillBots) while(people.length < 4) people.push({id:"cpu" + people.length, name:"Computer " + (people.length - ps.length + 1), bot:true});
+      if(people.length < 2) break;
+      newGame(people); menuOpen = false; say("Ludo. " + people[0].name + " goes first. Roll the dice."); break; }
+    case "rally": if(sendToRally()){ G.sent = true; toast("Points added in Road Rally"); } else toast("Open Road Rally once on this device first"); break;
+  }
+  render();
+});
+document.addEventListener("change", e => { const t = e.target;
+  if(t.id === "bots"){ fillBots = t.checked; render(); }
+  if(t.classList.contains("pon")){ setupPlayers[+t.dataset.i].on = t.checked; render(); } });
+load(); if(!G) menuOpen = true; busy = false; render();
+if("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+}
+</script>
+</body>
+</html>
