@@ -691,6 +691,13 @@ let lock = null;
 async function wake(){ if(!S.settings.awake || lock || !("wakeLock" in navigator)) return;
   try{ lock = await navigator.wakeLock.request("screen"); lock.addEventListener("release", () => lock = null); }catch(e){} }
 document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible") wake(); });
+/* Pick up points that Ludo, Ivy Deal or Katan added while this page was in the background */
+function resync(){ try{ const d = JSON.parse(localStorage.getItem(KEY)); if(!d || !d.players) return;
+  if(JSON.stringify([d.today, d.log, d.days]) === JSON.stringify([S.today, S.log, S.days])) return;
+  S.today = d.today || {}; S.log = d.log || []; S.days = d.days || []; renderStones(); if(["home", "scores", "dayend"].includes(S.screen)) render(); }catch(e){} }
+addEventListener("pageshow", e => { if(e.persisted) resync(); });
+addEventListener("storage", e => { if(e.key === KEY) resync(); });
+document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible") resync(); });
 
 /* ---------- Talking (text to speech, works offline with the phone's own voices) ---------- */
 const TTS = "speechSynthesis" in window;
@@ -1411,7 +1418,7 @@ document.addEventListener("change", e => {
 function start(data){
   if(data && data.players) S = revive(data); else load();
   S.g.ant.running = false; S.g.atlas.running = false; R = null;
-  render();
+  save(); render();  /* saved straight away so Ludo, Ivy Deal and Katan can add points */
 }
 window.claude?.hot?.snapshot?.(() => S);
 window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});

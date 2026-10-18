@@ -29,6 +29,7 @@ header{background:#0b5394;color:#fff;display:flex;align-items:center;gap:10px;fl
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 header h1{font-family:var(--display);font-weight:800;font-size:1.35rem;margin:0;flex:1}
 .hbtn{background:rgba(255,255,255,.14);border:0;color:#fff;border-radius:10px;padding:8px 12px;font-weight:600;text-decoration:none;font-size:.88rem}
+.hbtn.back{background:#fff;color:#0b5394;font-weight:800}
 .logo{background:#fff;border-radius:8px;padding:3px 6px;line-height:0} .logo img{height:28px;width:auto;display:block}
 main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,400px);gap:16px;align-items:start;padding-block:14px;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));max-width:1280px;margin:0 auto}
@@ -76,11 +77,11 @@ h3{font-family:var(--display);font-weight:700;font-size:1rem;margin:0}
 </head>
 <body>
 <header>
+  <a class="hbtn back" href="./" aria-label="Back to all games">‹ Back</a>
   <h1>Ivy Deal</h1>
   <button class="hbtn" data-a="rules">Rules</button>
   <button class="hbtn" id="talkBtn" data-a="talk">Voice on</button>
   <button class="hbtn" data-a="menu">New game</button>
-  <a class="hbtn" href="./">Road Rally</a>
   <a class="logo" href="https://ivyproschool.com/" target="_blank" rel="noopener" aria-label="Ivy Professional School website"><img src="ivy-logo.png" alt="Ivy Professional School"></a>
 </header>
 <div id="app"></div>
@@ -399,7 +400,7 @@ function coverScreen(){ const q = P(G.cover);
 function side(){
   const pi = G.turn, me = P(pi);
   if(G.phase === "over") return `<div class="card turn"><h2>${esc(P(G.winner).name)} wins!</h2><p>3 complete sets: ${completeColors(G.winner).map(c => COLORS[c].name).join(", ")}.</p></div>
-    ${G.sent ? `<p class="sub">25 points added in Road Rally.</p>` : `<button class="btn amber" data-a="rally">Add 25 points to ${esc(P(G.winner).name)} in Road Rally</button>`}<button class="btn go" data-a="menu">New game</button>`;
+    ${G.sent ? `<div class="card" style="border:3px solid var(--cap)"><h3>Added to the scoreboard</h3><p class="sub" style="color:var(--ink)">${esc(P(G.winner).name)} +25</p></div>` : `<button class="btn amber" data-a="rally">Add 25 points to ${esc(P(G.winner).name)} on the scoreboard</button>`}<button class="btn go" data-a="menu">New game</button>`;
   const p = G.pending;
   if(G.phase === "respond"){ const q = p.queue[0], who = p.decider === "target" ? q.t : p.from;
     const what = p.kind === "pay" ? p.label + ": pay " + cr(q.amount) : p.label;
@@ -445,6 +446,7 @@ function setupScreen(){
 }
 function render(){
   $("#talkBtn").textContent = talk ? "Voice on" : "Voice off";
+  if(G && G.phase === "over" && G.winner !== null && !G.sent && !G.tried){ G.tried = true; if(sendToRally()) G.sent = true; }
   $("#app").innerHTML = menuOpen || !G ? setupScreen() : (G.cover !== null && G.cover !== undefined && P(G.cover) ? coverScreen() : `<main><div class="col">${table()}</div><div class="col side">${side()}</div></main>`);
   save();
 }
@@ -487,7 +489,7 @@ document.addEventListener("click", e => {
     case "menu": menuOpen = true; setupPlayers = null; break;
     case "resume": menuOpen = false; break;
     case "start": { const ps = setupPlayers.filter(p => p.on); if(ps.length < 2 || ps.length > 5) break; newGame(ps, setupHide); resetUI(); menuOpen = false; say("Ivy Deal. " + ps[0].name + " starts."); break; }
-    case "rally": if(sendToRally()){ G.sent = true; toast("25 points added in Road Rally"); } else toast("Open Road Rally once on this device first"); break;
+    case "rally": if(sendToRally()){ G.sent = true; toast("25 points added to the scoreboard"); } else toast("Open the games home screen once on this device first"); break;
   }
   if(ok === false) toast("That move isn't allowed right now");
   render();

@@ -43,6 +43,7 @@ header h1{font-family:var(--display);font-weight:800;font-size:1.5rem;margin:0;l
 .chip .vp{font-family:var(--display);font-size:1.15rem}
 .chip small{opacity:.75;font-weight:400}
 .hbtn{background:rgba(255,255,255,.14);border:0;color:#fff;border-radius:10px;padding:8px 12px;font-weight:700;text-decoration:none;font-size:.9rem}
+.hbtn.back{background:#fff;color:#0b5394;font-weight:800}
 
 .layout{display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:16px;padding-block:14px;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
@@ -109,11 +110,11 @@ svg text{font-family:var(--display);pointer-events:none}
 </head>
 <body>
 <header>
+  <a class="hbtn back" href="./" aria-label="Back to all games">‹ Back</a>
   <h1>AgrawalKatan</h1>
   <div class="chips" id="chips"></div>
   <button class="hbtn" id="talkBtn" data-a="talk">Voice on</button>
   <button class="hbtn" data-a="menu">New game</button>
-  <a class="hbtn" href="./">Road Rally</a>
 </header>
 <div id="app"></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -549,7 +550,7 @@ function panel(){
   if(G.phase === "setup") h += `<div class="row"><button class="btn" data-a="undo" ${G.undo.length ? "" : "disabled"}>Undo</button></div>`;
   if(G.phase === "over"){
     h += `<div class="card"><h3>Final points</h3>${[...G.players.keys()].sort((a, b) => points(b) - points(a)).map(i => `<div class="counter"><span><b style="color:${P(i).c}">${esc(P(i).name)}</b></span><span class="n">${points(i)}</span></div>`).join("")}</div>
-      ${G.sent ? `<p class="sub">25 points added to ${esc(P(G.winner).name)} on the Road Rally scoreboard.</p>` : `<button class="btn amber" data-a="rally">Add 25 points to ${esc(P(G.winner).name)} in Road Rally</button>`}
+      ${G.sent ? `<div class="card" style="border:3px solid var(--cap)"><h3>Added to the scoreboard</h3><p class="sub">${esc(P(G.winner).name)} +25</p></div>` : `<button class="btn amber" data-a="rally">Add 25 points to ${esc(P(G.winner).name)} on the scoreboard</button>`}
       <button class="btn go" data-a="menu">New game</button>`;
   }
   if(G.phase !== "setup") h += `<div class="card"><h3>Bonus cards (2 points each)</h3><p class="sub">Longest Road: ${G.road !== null ? `<b style="color:${P(G.road).c}">${esc(P(G.road).name)}</b> (${longest(G.road)} roads)` : "nobody yet (needs 5 in a row)"}<br>
@@ -598,6 +599,7 @@ function setupScreen(){
 /* Keep the panel where it was between taps; jump to the top only when the iPad changes hands */
 let saved = {panel:0, win:0}, wasConfirm = false, toTop = false;
 function render(){
+  if(G && G.phase === "over" && !G.sent && !G.tried){ G.tried = true; if(sendToRally(G.winner)) G.sent = true; }
   const pnl = document.querySelector(".panel");
   if(pnl && !wasConfirm) saved = {panel:pnl.scrollTop, win:window.scrollY || 0};
   $("#chips").innerHTML = menuOpen || !G ? "" : chips();

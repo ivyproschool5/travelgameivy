@@ -30,6 +30,7 @@ header{background:#0b5394;color:#fff;display:flex;align-items:center;gap:10px;fl
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 header h1{font-family:var(--display);font-weight:800;font-size:1.35rem;margin:0;flex:1}
 .hbtn{background:rgba(255,255,255,.14);border:0;color:#fff;border-radius:10px;padding:8px 12px;font-weight:600;text-decoration:none;font-size:.88rem}
+.hbtn.back{background:#fff;color:#0b5394;font-weight:800}
 .logo{background:#fff;border-radius:8px;padding:3px 6px;line-height:0} .logo img{height:28px;width:auto;display:block}
 main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start;padding-block:14px;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));max-width:1200px;margin:0 auto}
@@ -67,11 +68,11 @@ h3{font-family:var(--display);font-weight:700;font-size:1.05rem;margin:0}
 </head>
 <body>
 <header>
+  <a class="hbtn back" href="./" aria-label="Back to all games">‹ Back</a>
   <h1>Ludo</h1>
   <button class="hbtn" data-a="rules">Rules</button>
   <button class="hbtn" id="talkBtn" data-a="talk">Voice on</button>
   <button class="hbtn" data-a="menu">New game</button>
-  <a class="hbtn" href="./">Road Rally</a>
   <a class="logo" href="https://ivyproschool.com/" target="_blank" rel="noopener" aria-label="Ivy Professional School website"><img src="ivy-logo.png" alt="Ivy Professional School"></a>
 </header>
 <div id="app"></div>
@@ -194,10 +195,11 @@ function rallyPlayers(){
 }
 function sendToRally(){
   try{ const d = JSON.parse(localStorage.getItem(RALLY_KEY)); if(!d || !d.players) return false;
-    const pts = [25, 10]; let any = false;
+    const pts = [25, 10], got = [];
     G.rank.slice(0, 2).forEach((pi, k) => { const id = P(pi).id; if(P(pi).bot || !d.players.some(p => p.id === id)) return;
-      d.today = d.today || {}; d.today[id] = (d.today[id] || 0) + pts[k]; d.log = d.log || []; d.log.push({id, pts:pts[k], label:"Ludo place " + (k + 1)}); any = true; });
-    localStorage.setItem(RALLY_KEY, JSON.stringify(d)); return any; }catch(e){ return false; }
+      d.today = d.today || {}; d.today[id] = (d.today[id] || 0) + pts[k]; d.log = d.log || []; d.log.push({id, pts:pts[k], label:"Ludo place " + (k + 1)}); got.push(P(pi).name + " +" + pts[k]); });
+    if(!got.length) return false;
+    localStorage.setItem(RALLY_KEY, JSON.stringify(d)); G.got = got; return true; }catch(e){ return false; }
 }
 
 /* ---------- Drawing ---------- */
@@ -268,7 +270,9 @@ function panel(){
   if(G.over){
     return `<div class="card turn" style="--pc:#0b5394"><h2>${esc(P(G.rank[0]).name)} wins!</h2></div>
       <div class="card"><h3>Final places</h3>${G.rank.map((pi, k) => `<div class="seat" style="--pc:${col(pi).c}"><span class="dot"></span>${k + 1}. ${esc(P(pi).name)}${P(pi).bot ? " (computer)" : ""}</div>`).join("")}</div>
-      ${G.sent ? `<p class="sub">Points added in Road Rally.</p>` : `<button class="btn amber" data-a="rally">Add points in Road Rally (25 for 1st, 10 for 2nd)</button>`}
+      ${G.sent ? `<div class="card" style="border:3px solid var(--cap)"><h3>Added to the scoreboard</h3><p class="sub" style="color:var(--ink)">${esc((G.got || []).join(", "))}</p></div>`
+        : G.rank.slice(0, 2).every(pi => P(pi).bot) ? `<p class="sub">No scoreboard points: the computer took 1st and 2nd.</p>`
+        : `<button class="btn amber" data-a="rally">Add points to the scoreboard (25 for 1st, 10 for 2nd)</button>`}
       <button class="btn go" data-a="menu">New game</button>`;
   }
   const pi = G.turn, c = col(pi), me = P(pi), light = c.key === "yellow";
@@ -300,6 +304,7 @@ function setupScreen(){
 }
 function render(){
   $("#talkBtn").textContent = talk ? "Voice on" : "Voice off";
+  if(G && G.over && !G.sent && !G.tried){ G.tried = true; if(sendToRally()){ G.sent = true; say("Points added to the scoreboard."); } }
   $("#app").innerHTML = menuOpen || !G ? setupScreen() : `<main><div>${drawBoard()}</div><div class="panel">${panel()}</div></main>`;
   save(); botTick();
 }
@@ -349,7 +354,7 @@ document.addEventListener("click", e => {
       if(fillBots) while(people.length < 4) people.push({id:"cpu" + people.length, name:"Computer " + (people.length - ps.length + 1), bot:true});
       if(people.length < 2) break;
       newGame(people, useArrows); menuOpen = false; say("Ludo. " + people[0].name + " goes first. Roll the dice."); break; }
-    case "rally": if(sendToRally()){ G.sent = true; toast("Points added in Road Rally"); } else toast("Open Road Rally once on this device first"); break;
+    case "rally": if(sendToRally()){ G.sent = true; toast("Points added to the scoreboard"); } else toast("Open the games home screen once on this device first"); break;
   }
   render();
 });
