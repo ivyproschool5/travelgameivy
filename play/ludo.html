@@ -211,12 +211,18 @@ function drawBoard(){
   });
   TRACK.forEach(([r, c], i) => { const st = COLS.find(k => k.start === i);
     s += `<rect x="${c}" y="${r}" width="1" height="1" fill="${st ? st.c : "#fff"}" stroke="#9aa7b2" stroke-width=".03"/>`;
-    if(SAFE.has(i) && !st) s += `<path d="${STAR(c + .5, r + .5, .36)}" fill="#c3ccd4"/>`; });
-  /* white arrow on each start square shows which way tokens travel; a coloured arrow shows where each colour turns into its home column */
-  const arrow = (r, c, dr, dc, fill, sz) => { const x = c + .5, y = r + .5, k = sz || .3, px = -dr, py = dc;
-    return `<polygon points="${(x + dc * k).toFixed(3)},${(y + dr * k).toFixed(3)} ${(x - dc * k * .7 + px * k * .8).toFixed(3)},${(y - dr * k * .7 + py * k * .8).toFixed(3)} ${(x - dc * k * .7 - px * k * .8).toFixed(3)},${(y - dr * k * .7 - py * k * .8).toFixed(3)}" fill="${fill}"/>`; };
-  COLS.forEach(cc => { const [r1, c1] = TRACK[cc.start], [r2, c2] = TRACK[(cc.start + 1) % 52]; s += arrow(r1, c1, r2 - r1, c2 - c1, "#fff", .32);
-    const [re, ce] = TRACK[(cc.start + 50) % 52], [rh, ch] = cc.home[0]; s += arrow(re, ce, rh - re, ch - ce, cc.c, .3); });
+    if(SAFE.has(i)) s += `<path d="${STAR(c + .5, r + .5, .36)}" fill="${st ? "#fff" : "#c3ccd4"}"/>`; });
+  /* Path markings like a printed Indian Ludo board:
+     diagonal arrows where the path cuts across each inner corner, and a U-turn arrow at the end of each arm
+     showing where that colour turns into its home lane. */
+  const head = (x, y, ang, fill, k) => `<polygon points="${x.toFixed(2)},${y.toFixed(2)} ${(x - Math.cos(ang - .5) * k).toFixed(2)},${(y - Math.sin(ang - .5) * k).toFixed(2)} ${(x - Math.cos(ang + .5) * k).toFixed(2)},${(y - Math.sin(ang + .5) * k).toFixed(2)}" fill="${fill}"/>`;
+  [[6,5,5,6,COLS[1].c],[5,8,6,9,COLS[2].c],[8,9,9,8,COLS[3].c],[9,6,8,5,COLS[0].c]].forEach(([r1, c1, r2, c2, fill]) => {
+    const x1 = c1 + .5, y1 = r1 + .5, x2 = c2 + .5, y2 = r2 + .5, ang = Math.atan2(y2 - y1, x2 - x1), ex = x2 - Math.cos(ang) * .18, ey = y2 - Math.sin(ang) * .18;
+    s += `<line x1="${(x1 + Math.cos(ang) * .1).toFixed(2)}" y1="${(y1 + Math.sin(ang) * .1).toFixed(2)}" x2="${(ex - Math.cos(ang) * .3).toFixed(2)}" y2="${(ey - Math.sin(ang) * .3).toFixed(2)}" stroke="${fill}" stroke-width=".16" stroke-linecap="round"/>` + head(ex, ey, ang, fill, .42); });
+  [[1, 0], [0, -90], [2, 90], [3, 180]].forEach(([ci, rot]) => { const fill = COLS[ci].c;
+    const u = "M6.5 1.8 L6.5 1.0 Q6.5 .42 7 .42 Q7.5 .42 7.5 1.0 L7.5 1.3";
+    s += `<g transform="rotate(${rot} 7.5 7.5)"><path d="${u}" fill="none" stroke="#fff" stroke-width=".32" stroke-linecap="round"/><path d="${u}" fill="none" stroke="${fill}" stroke-width=".16" stroke-linecap="round"/>
+      ${head(7.5, 1.82, Math.PI / 2, "#fff", .52).replace("/>", ' stroke="#fff" stroke-width=".1" stroke-linejoin="round"/>')}${head(7.5, 1.74, Math.PI / 2, fill, .38)}</g>`; });
   s += `<polygon points="6,6 7.5,7.5 6,9" fill="${COLS[0].c}"/><polygon points="6,6 9,6 7.5,7.5" fill="${COLS[1].c}"/><polygon points="9,6 9,9 7.5,7.5" fill="${COLS[2].c}"/><polygon points="6,9 9,9 7.5,7.5" fill="${COLS[3].c}"/>`;
   const can = G.phase === "move" && !P(G.turn).bot && !busy ? legal(G.turn, G.die) : [];
   /* landing spots: a dashed ring where each movable token would end up (tap it to move) */
@@ -247,7 +253,7 @@ const RULES = `<div class="card"><h3>How to play</h3><div class="sub" style="dis
   <p style="margin:0">Landing on another player's token <b>cuts</b> it: it goes back home and you roll again.</p>
   <p style="margin:0">Squares with a <b>star</b> and the coloured start squares are safe. Nobody can be cut there.</p>
   <p style="margin:0">You need the exact number to reach the centre. Getting a token in gives you another roll.</p>
-  <p style="margin:0">White arrows show the way round. A coloured arrow shows where that colour turns into its home lane. A dashed ring shows where a token will land.</p></div></div>`;
+  <p style="margin:0">The diagonal arrows show where the path cuts across each corner. The U-shaped arrow at the end of each arm shows where that colour turns into its home lane. A dashed ring shows where a token will land.</p></div></div>`;
 function panel(){
   if(G.over){
     return `<div class="card turn" style="--pc:#0b5394"><h2>${esc(P(G.rank[0]).name)} wins!</h2></div>
