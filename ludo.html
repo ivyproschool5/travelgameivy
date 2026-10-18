@@ -91,6 +91,8 @@ const TRACK = [];
   for(let c = 13; c >= 9; c--) add(8, c); for(let r = 9; r <= 14; r++) add(r, 8); add(14, 7); add(14, 6);
   for(let r = 13; r >= 9; r--) add(r, 6); for(let c = 5; c >= 0; c--) add(8, c); add(7, 0); add(6, 0); })();
 const SAFE = new Set([0, 8, 13, 21, 26, 34, 39, 47]);
+/* Corner arrows (printed-board rule): the square at each arrow's tail -> the square at its tip, plus another roll */
+const ARROWS = {4:5, 17:18, 30:31, 43:44};
 const FINISH = 56, LAST_TRACK = 50;
 const SEATS = {2:[0,2], 3:[0,1,2], 4:[0,1,2,3]};
 
@@ -102,11 +104,11 @@ const RALLY_KEY = PUBLIC ? "ivy-rr-v1" : "himachal-rally-v1", KEY = PUBLIC ? "iv
 const absOf = (ci, p) => (COLS[ci].start + p) % 52;
 
 /* ---------- State ---------- */
-let G = null, menuOpen = false, setupPlayers = null, fillBots = true, rulesOpen = false, busy = false;
-function newGame(people){
+let G = null, menuOpen = false, setupPlayers = null, fillBots = true, useArrows = !PUBLIC, rulesOpen = false, busy = false;
+function newGame(people, arrows){
   const n = people.length, seats = SEATS[n];
   G = {v:1, players:people.map((p, i) => ({id:p.id, name:p.name, bot:!!p.bot, col:seats[i], tok:[-1,-1,-1,-1], done:false})),
-    turn:0, phase:"roll", die:null, sixes:0, rank:[], log:[], over:false, sent:false};
+    turn:0, phase:"roll", die:null, sixes:0, rank:[], log:[], over:false, sent:false, arrows:!!arrows};
   log("New game. " + G.players[0].name + " goes first.");
 }
 const P = i => G.players[i];
@@ -138,10 +140,15 @@ function roll(forced){
     if(d === 6){ G.phase = "roll"; G.bonus = {pi, why:P(pi).name + " rolled a 6"}; } else nextTurn(); return d; }
   G.note = ""; G.phase = "move"; return d;
 }
+/* Where a token really ends up: landing exactly on an arrow's tail takes it to the arrow's tip */
+function landing(pi, np){ if(!G.arrows || np === null || np > LAST_TRACK) return np; const a = absOf(P(pi).col, np);
+  return ARROWS[a] !== undefined ? np + ((ARROWS[a] - a + 52) % 52) : np; }
 /* Moves a token and applies captures, finishing and extra rolls. Returns {captured, finished, extra}. */
 function move(t){
   const pi = G.turn, d = G.die; if(G.phase !== "move") return null;
-  const np = target(pi, t, d); if(np === null) return null;
+  const raw = target(pi, t, d); if(raw === null) return null;
+  const np = landing(pi, raw), arrowed = np !== raw;
+  if(arrowed){ log(P(pi).name + " landed on an arrow and jumped to its tip."); }
   P(pi).tok[t] = np;
   const v = victims(pi, np);
   v.forEach(([qi, qt]) => { P(qi).tok[qt] = -1; });
@@ -154,9 +161,10 @@ function move(t){
     if(left.length <= 1){ if(left.length) G.rank.push(left[0]); G.over = true; G.phase = "over"; return {captured:v.length, finished, extra:false}; }
     nextTurn(); return {captured:v.length, finished, extra:false};
   }
-  const extra = d === 6 || v.length > 0 || finished;
+  const extra = d === 6 || v.length > 0 || finished || arrowed;
   if(extra){ G.phase = "roll"; G.die = null; if(!(d === 6)) G.sixes = 0;
-    G.bonus = {pi, why: v.length ? P(pi).name + " cut " + v.map(([qi]) => P(qi).name).join(" and ") + "'s token" : finished ? P(pi).name + " got a token home" : P(pi).name + " rolled a 6"}; }
+    G.bonus = {pi, why: v.length ? P(pi).name + " cut " + v.map(([qi]) => P(qi).name).join(" and ") + "'s token" : finished ? P(pi).name + " got a token home" : arrowed ? P(pi).name + " landed on an arrow" : P(pi).name + " rolled a 6"};
+    if(arrowed && !v.length) say("Arrow! " + P(pi).name + " jumps ahead and rolls again."); }
   else nextTurn();
   return {captured:v.length, finished, extra};
 }
@@ -165,7 +173,7 @@ function botChoice(pi, d){
   const opts = legal(pi, d); if(opts.length === 1) return opts[0];
   const danger = (np) => { if(np > LAST_TRACK) return false; const a = absOf(P(pi).col, np); if(SAFE.has(a)) return false;
     return G.players.some((q, qi) => qi !== pi && q.tok.some(p => p >= 0 && p <= LAST_TRACK && ((a - absOf(q.col, p) + 52) % 52) >= 1 && ((a - absOf(q.col, p) + 52) % 52) <= 6)); };
-  const score = t => { const p = P(pi).tok[t], np = target(pi, t, d); let s = 0;
+  const score = t => { const p = P(pi).tok[t], raw = target(pi, t, d), np = landing(pi, raw); let s = 0; if(np !== raw) s += 50;
     if(victims(pi, np).length) s += 100; if(np === FINISH) s += 80; if(p === -1) s += 60;
     if(p >= 0 && danger(p) && !danger(np)) s += 40; if(danger(np)) s -= 30; if(np > LAST_TRACK) s += 20; s += np / 10; return s; };
   return opts.sort((a, b) => score(b) - score(a))[0];
@@ -216,6 +224,7 @@ function drawBoard(){
      diagonal arrows where the path cuts across each inner corner, and a U-turn arrow at the end of each arm
      showing where that colour turns into its home lane. */
   const head = (x, y, ang, fill, k) => `<polygon points="${x.toFixed(2)},${y.toFixed(2)} ${(x - Math.cos(ang - .5) * k).toFixed(2)},${(y - Math.sin(ang - .5) * k).toFixed(2)} ${(x - Math.cos(ang + .5) * k).toFixed(2)},${(y - Math.sin(ang + .5) * k).toFixed(2)}" fill="${fill}"/>`;
+  if(G.arrows) [[6,5],[5,8],[8,9],[9,6]].forEach(([r, c]) => s += `<circle cx="${c + .5}" cy="${r + .5}" r=".38" fill="none" stroke="#14202b" stroke-width=".05" stroke-dasharray=".1 .08" opacity=".55"/>`);
   [[6,5,5,6,COLS[1].c],[5,8,6,9,COLS[2].c],[8,9,9,8,COLS[3].c],[9,6,8,5,COLS[0].c]].forEach(([r1, c1, r2, c2, fill]) => {
     const x1 = c1 + .5, y1 = r1 + .5, x2 = c2 + .5, y2 = r2 + .5, ang = Math.atan2(y2 - y1, x2 - x1), ex = x2 - Math.cos(ang) * .18, ey = y2 - Math.sin(ang) * .18;
     s += `<line x1="${(x1 + Math.cos(ang) * .1).toFixed(2)}" y1="${(y1 + Math.sin(ang) * .1).toFixed(2)}" x2="${(ex - Math.cos(ang) * .3).toFixed(2)}" y2="${(ey - Math.sin(ang) * .3).toFixed(2)}" stroke="${fill}" stroke-width=".16" stroke-linecap="round"/>` + head(ex, ey, ang, fill, .42); });
@@ -226,7 +235,7 @@ function drawBoard(){
   s += `<polygon points="6,6 7.5,7.5 6,9" fill="${COLS[0].c}"/><polygon points="6,6 9,6 7.5,7.5" fill="${COLS[1].c}"/><polygon points="9,6 9,9 7.5,7.5" fill="${COLS[2].c}"/><polygon points="6,9 9,9 7.5,7.5" fill="${COLS[3].c}"/>`;
   const can = G.phase === "move" && !P(G.turn).bot && !busy ? legal(G.turn, G.die) : [];
   /* landing spots: a dashed ring where each movable token would end up (tap it to move) */
-  can.forEach(t => { const keep = P(G.turn).tok[t]; P(G.turn).tok[t] = target(G.turn, t, G.die); const [x, y] = tokXY(G.turn, t); P(G.turn).tok[t] = keep;
+  can.forEach(t => { const keep = P(G.turn).tok[t]; P(G.turn).tok[t] = landing(G.turn, target(G.turn, t, G.die)); const [x, y] = tokXY(G.turn, t); P(G.turn).tok[t] = keep;
     s += `<g class="tok" data-t="${t}"><circle cx="${x}" cy="${y}" r=".42" fill="rgba(255,255,255,.6)" stroke="${col(G.turn).c}" stroke-width=".08" stroke-dasharray=".14 .1"/><circle cx="${x}" cy="${y}" r=".7" fill="transparent"/></g>`; });
   /* last roll shown in the centre of the board, framed in the roller's colour */
   const shown = G.die || (G.last && G.last.d), who = G.die ? G.turn : G.last && G.last.pi;
@@ -253,6 +262,7 @@ const RULES = `<div class="card"><h3>How to play</h3><div class="sub" style="dis
   <p style="margin:0">Landing on another player's token <b>cuts</b> it: it goes back home and you roll again.</p>
   <p style="margin:0">Squares with a <b>star</b> and the coloured start squares are safe. Nobody can be cut there.</p>
   <p style="margin:0">You need the exact number to reach the centre. Getting a token in gives you another roll.</p>
+  <p style="margin:0"><b>Corner arrows</b> (if switched on): land exactly on the dotted square where a corner arrow starts and your token jumps to the arrow's tip, and you roll again.</p>
   <p style="margin:0">The diagonal arrows show where the path cuts across each corner. The U-shaped arrow at the end of each arm shows where that colour turns into its home lane. A dashed ring shows where a token will land.</p></div></div>`;
 function panel(){
   if(G.over){
@@ -282,6 +292,7 @@ function setupScreen(){
   return `<div class="setup"><h2>Ludo</h2><p class="sub">Indian Ludo for 2 to 4. Pass the phone or tablet around, or play against the computer.</p>
     <div class="card"><h3>Who's playing?</h3>${setupPlayers.map((p, i) => `<label class="pl"><input type="checkbox" class="pon" data-i="${i}" ${p.on ? "checked" : ""}><span>${esc(p.name)}</span></label>`).join("")}
       <label class="pl"><input type="checkbox" id="bots" ${fillBots ? "checked" : ""}><span>Fill empty colours with computer players</span></label></div>
+    <label class="pl card" style="flex-direction:row"><input type="checkbox" id="arrows" ${useArrows ? "checked" : ""}><span><b>Corner arrows give a bonus</b><br><span class="sub">Land exactly where a corner arrow starts and your token jumps to the arrow's tip, then you roll again (printed-board rule).</span></span></label>
     <button class="btn go" data-a="start" ${n >= 1 && n <= 4 && (n >= 2 || fillBots) ? "" : "disabled"}>Start: ${n} ${n === 1 ? "player" : "players"}${fillBots && n < 4 ? " + " + (4 - n) + " computer" : ""}</button>
     ${n > 4 ? `<p class="sub">Tick up to 4 players.</p>` : n === 1 && !fillBots ? `<p class="sub">Tick 2 players, or let the computer play the other colours.</p>` : ""}
     ${G && !G.over ? `<button class="btn" data-a="resume">Back to the current game</button>` : ""}
@@ -310,8 +321,9 @@ function doMove(t){
   if(busy || !G || G.phase !== "move") return;
   const pi = G.turn, from = P(pi).tok[t], to = target(pi, t, G.die); if(to === null) return;
   busy = true; const steps = from === -1 ? [0] : Array.from({length:to - from}, (_, k) => from + k + 1); let k = 0;
+  const land = landing(pi, to); if(land !== to) steps.push(land);
   const hop = () => { P(pi).tok[t] = steps[k]; $("#app").querySelector("#board").outerHTML = drawBoard(); k++;
-    if(k < steps.length) setTimeout(hop, 110);
+    if(k < steps.length) setTimeout(hop, land !== to && k === steps.length - 1 ? 450 : 110);
     else { P(pi).tok[t] = from; busy = false; const r = move(t); if(r && r.finished && !G.over) say("Token home! Roll again."); render(); } };
   hop();
 }
@@ -336,13 +348,14 @@ document.addEventListener("click", e => {
       const people = ps.map(p => ({id:p.id, name:p.name}));
       if(fillBots) while(people.length < 4) people.push({id:"cpu" + people.length, name:"Computer " + (people.length - ps.length + 1), bot:true});
       if(people.length < 2) break;
-      newGame(people); menuOpen = false; say("Ludo. " + people[0].name + " goes first. Roll the dice."); break; }
+      newGame(people, useArrows); menuOpen = false; say("Ludo. " + people[0].name + " goes first. Roll the dice."); break; }
     case "rally": if(sendToRally()){ G.sent = true; toast("Points added in Road Rally"); } else toast("Open Road Rally once on this device first"); break;
   }
   render();
 });
 document.addEventListener("change", e => { const t = e.target;
   if(t.id === "bots"){ fillBots = t.checked; render(); }
+  if(t.id === "arrows"){ useArrows = t.checked; }
   if(t.classList.contains("pon")){ setupPlayers[+t.dataset.i].on = t.checked; render(); } });
 load(); if(!G) menuOpen = true; busy = false; render();
 if("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
