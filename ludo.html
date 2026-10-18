@@ -47,6 +47,12 @@ h3{font-family:var(--display);font-weight:700;font-size:1.05rem;margin:0}
 .btn:disabled{opacity:.4;cursor:default}
 .row{display:flex;gap:8px;flex-wrap:wrap} .row .btn{flex:1 1 0}
 .dicewrap{display:flex;align-items:center;gap:14px}
+.diebtn{border:0;background:none;padding:0;border-radius:18px;flex:none;touch-action:manipulation} .diebtn:disabled{cursor:default}
+.rollbtn{min-height:76px;font-size:1.35rem;touch-action:manipulation}
+.oneline{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rollhit{cursor:pointer}
+html{touch-action:manipulation}
+.turn p{min-height:2.9em}
 .die{width:72px;height:72px;border-radius:16px;background:#fff;border:3px solid #0b5394;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:9px;flex:none}
 .die i{width:12px;height:12px;border-radius:50%;background:#14202b;place-self:center;visibility:hidden}
 .die.rolling{animation:shake .5s ease}
@@ -332,6 +338,8 @@ function drawBoard(){
   const shown = G.die || (G.last && G.last.d), who = G.die ? G.turn : G.last && G.last.pi;
   if(shown && who !== null && who !== undefined && P(who)){ const pipsAt = [[.25,.25],[.5,.25],[.75,.25],[.25,.5],[.5,.5],[.75,.5],[.25,.75],[.5,.75],[.75,.75]];
     s += `<rect x="6.45" y="6.45" width="2.1" height="2.1" rx=".35" fill="#fff" stroke="${col(who).c}" stroke-width=".16"/>` + PIPS[shown].map(i => `<circle cx="${6.45 + pipsAt[i][0] * 2.1}" cy="${6.45 + pipsAt[i][1] * 2.1}" r=".17" fill="#14202b"/>`).join(""); }
+  /* the centre of the board is a big roll button on a person's turn */
+  if(G.phase === "roll" && !G.over && !P(G.turn).bot && !busy) s += `<rect class="rollhit" data-a="roll" x="6" y="6" width="3" height="3" fill="transparent"><title>Roll the dice</title></rect>`;
   const spots = {}; const items = [];
   G.players.forEach((q, pi) => q.tok.forEach((p, t) => { const [x, y] = tokXY(pi, t); const k = x.toFixed(2) + "," + y.toFixed(2); (spots[k] = spots[k] || []).push(1); items.push({pi, t, x, y, k}); }));
   const seen = {};
@@ -366,14 +374,14 @@ function panel(){
   }
   const pi = G.turn, c = col(pi), me = P(pi), light = c.key === "yellow";
   const hint = me.bot ? "Computer is playing…" : G.phase === "roll" ? (G.bonus && G.bonus.pi === pi ? "Bonus roll! Tap Roll again." : "Tap Roll.") : "Tap a bouncing token, or its dashed ring, to move it.";
-  const shownD = G.die || (G.last && G.last.d), lastBy = G.die ? pi : G.last && G.last.pi;
+  const shownD = G.die || (G.last && G.last.d), lastBy = G.die ? pi : G.last && G.last.pi, canRoll = G.phase === "roll" && !me.bot && !busy;
   let h = `${rulesOpen ? RULES + `<button class="btn" data-a="rules">Close the rules</button>` : ""}
     <div class="card turn ${light ? "light" : ""}" style="--pc:${c.c}"><h2>${esc(me.name)}${me.bot ? " (computer)" : ""}</h2><p>${c.name} · ${hint}</p></div>
+    <div class="card"><div class="dicewrap"><button class="diebtn" data-a="roll" aria-label="Roll the dice" ${canRoll ? "" : "disabled"}>${dieHTML(shownD, busy && G.phase === "roll")}</button><div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">
+      ${shownD && lastBy !== null && lastBy !== undefined && P(lastBy) ? `<span class="sub oneline" style="color:var(--ink)"><b>${esc(P(lastBy).name)}</b> rolled <b>${shownD}</b></span>` : `<span class="sub oneline">No roll yet</span>`}
+      <button class="btn amber rollbtn" data-a="roll" ${canRoll ? "" : "disabled"}>${G.bonus && G.bonus.pi === pi && G.phase === "roll" ? "Roll again" : "Roll"}</button></div></div>
+      ${G.note ? `<span class="sub">${esc(G.note)}</span>` : ""}</div>
     ${G.bonus && G.bonus.pi === pi && G.phase === "roll" ? `<div class="card" style="border:3px solid var(--cap);flex-direction:row;align-items:center;gap:12px"><span style="font-size:2rem;line-height:1" aria-hidden="true">↻</span><div><h3>Bonus roll</h3><p class="sub" style="color:var(--ink)">${esc(G.bonus.why)}, so ${esc(me.name)} rolls again.</p></div></div>` : ""}
-    <div class="card"><div class="dicewrap">${dieHTML(shownD, busy && G.phase === "roll")}<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">
-      ${shownD && lastBy !== null && lastBy !== undefined && P(lastBy) ? `<span class="sub" style="color:var(--ink)"><b>${esc(P(lastBy).name)}</b> rolled <b>${shownD}</b></span>` : `<span class="sub">No roll yet</span>`}
-      ${G.note ? `<span class="sub">${esc(G.note)}</span>` : ""}
-      <button class="btn amber" style="min-height:64px;font-size:1.3rem" data-a="roll" ${G.phase === "roll" && !me.bot && !busy ? "" : "disabled"}>${G.bonus && G.bonus.pi === pi && G.phase === "roll" ? "Roll again" : "Roll"}</button></div></div></div>
     <div class="card"><h3>Tokens home</h3><div class="seats">${G.players.map((q, i) => `<div class="seat" style="--pc:${COLS[q.col].c}"><span class="dot"></span>${esc(q.name)}${q.bot ? " (computer)" : ""}${i === G.turn ? " ◀" : ""}<span class="home">${q.tok.filter(p => p === FINISH).length}/4</span></div>`).join("")}</div></div>
     <div class="card"><h3>What happened</h3><p class="sub">${G.log.slice(0, 4).map(esc).join("<br>")}</p></div>`;
   return h;
