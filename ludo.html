@@ -125,17 +125,18 @@ function victims(pi, np){
 function nextTurn(){
   if(G.over) return;
   let i = G.turn; for(let k = 0; k < G.players.length; k++){ i = (i + 1) % G.players.length; if(!P(i).done) break; }
-  G.turn = i; G.sixes = 0; G.phase = "roll"; G.die = null;
+  G.turn = i; G.sixes = 0; G.phase = "roll"; G.die = null; G.bonus = null;
 }
 function roll(forced){
   if(G.phase !== "roll" || G.over) return null;
   const d = forced || 1 + Math.floor(Math.random() * 6); G.die = d;
-  const pi = G.turn;
+  const pi = G.turn; G.last = {pi, d}; G.bonus = null;
   if(d === 6) G.sixes++;
-  if(G.sixes === 3){ log(P(pi).name + " rolled three 6s in a row. Turn over."); say("Three sixes. Turn over."); nextTurn(); return d; }
+  if(G.sixes === 3){ log(P(pi).name + " rolled three 6s in a row. Turn over."); G.note = P(pi).name + " rolled three 6s in a row, so the turn is over."; say("Three sixes. Turn over."); nextTurn(); return d; }
   const moves = legal(pi, d);
-  if(!moves.length){ log(P(pi).name + " rolled " + d + ". No move."); if(d === 6) G.phase = "roll"; else nextTurn(); return d; }
-  G.phase = "move"; return d;
+  if(!moves.length){ log(P(pi).name + " rolled " + d + ". No move."); G.note = P(pi).name + " rolled " + d + ". No token can move.";
+    if(d === 6){ G.phase = "roll"; G.bonus = {pi, why:P(pi).name + " rolled a 6"}; } else nextTurn(); return d; }
+  G.note = ""; G.phase = "move"; return d;
 }
 /* Moves a token and applies captures, finishing and extra rolls. Returns {captured, finished, extra}. */
 function move(t){
@@ -154,7 +155,9 @@ function move(t){
     nextTurn(); return {captured:v.length, finished, extra:false};
   }
   const extra = d === 6 || v.length > 0 || finished;
-  if(extra){ G.phase = "roll"; G.die = null; if(!(d === 6)) G.sixes = 0; } else nextTurn();
+  if(extra){ G.phase = "roll"; G.die = null; if(!(d === 6)) G.sixes = 0;
+    G.bonus = {pi, why: v.length ? P(pi).name + " cut " + v.map(([qi]) => P(qi).name).join(" and ") + "'s token" : finished ? P(pi).name + " got a token home" : P(pi).name + " rolled a 6"}; }
+  else nextTurn();
   return {captured:v.length, finished, extra};
 }
 /* Computer player: cut > reach home > leave the yard > escape danger > move the furthest token */
@@ -208,9 +211,21 @@ function drawBoard(){
   });
   TRACK.forEach(([r, c], i) => { const st = COLS.find(k => k.start === i);
     s += `<rect x="${c}" y="${r}" width="1" height="1" fill="${st ? st.c : "#fff"}" stroke="#9aa7b2" stroke-width=".03"/>`;
-    if(SAFE.has(i)) s += `<path d="${STAR(c + .5, r + .5, .36)}" fill="${st ? "#fff" : "#c3ccd4"}"/>`; });
+    if(SAFE.has(i) && !st) s += `<path d="${STAR(c + .5, r + .5, .36)}" fill="#c3ccd4"/>`; });
+  /* white arrow on each start square shows which way tokens travel; a coloured arrow shows where each colour turns into its home column */
+  const arrow = (r, c, dr, dc, fill, sz) => { const x = c + .5, y = r + .5, k = sz || .3, px = -dr, py = dc;
+    return `<polygon points="${(x + dc * k).toFixed(3)},${(y + dr * k).toFixed(3)} ${(x - dc * k * .7 + px * k * .8).toFixed(3)},${(y - dr * k * .7 + py * k * .8).toFixed(3)} ${(x - dc * k * .7 - px * k * .8).toFixed(3)},${(y - dr * k * .7 - py * k * .8).toFixed(3)}" fill="${fill}"/>`; };
+  COLS.forEach(cc => { const [r1, c1] = TRACK[cc.start], [r2, c2] = TRACK[(cc.start + 1) % 52]; s += arrow(r1, c1, r2 - r1, c2 - c1, "#fff", .32);
+    const [re, ce] = TRACK[(cc.start + 50) % 52], [rh, ch] = cc.home[0]; s += arrow(re, ce, rh - re, ch - ce, cc.c, .3); });
   s += `<polygon points="6,6 7.5,7.5 6,9" fill="${COLS[0].c}"/><polygon points="6,6 9,6 7.5,7.5" fill="${COLS[1].c}"/><polygon points="9,6 9,9 7.5,7.5" fill="${COLS[2].c}"/><polygon points="6,9 9,9 7.5,7.5" fill="${COLS[3].c}"/>`;
   const can = G.phase === "move" && !P(G.turn).bot && !busy ? legal(G.turn, G.die) : [];
+  /* landing spots: a dashed ring where each movable token would end up (tap it to move) */
+  can.forEach(t => { const keep = P(G.turn).tok[t]; P(G.turn).tok[t] = target(G.turn, t, G.die); const [x, y] = tokXY(G.turn, t); P(G.turn).tok[t] = keep;
+    s += `<g class="tok" data-t="${t}"><circle cx="${x}" cy="${y}" r=".42" fill="rgba(255,255,255,.6)" stroke="${col(G.turn).c}" stroke-width=".08" stroke-dasharray=".14 .1"/><circle cx="${x}" cy="${y}" r=".7" fill="transparent"/></g>`; });
+  /* last roll shown in the centre of the board, framed in the roller's colour */
+  const shown = G.die || (G.last && G.last.d), who = G.die ? G.turn : G.last && G.last.pi;
+  if(shown && who !== null && who !== undefined && P(who)){ const pipsAt = [[.25,.25],[.5,.25],[.75,.25],[.25,.5],[.5,.5],[.75,.5],[.25,.75],[.5,.75],[.75,.75]];
+    s += `<rect x="6.45" y="6.45" width="2.1" height="2.1" rx=".35" fill="#fff" stroke="${col(who).c}" stroke-width=".16"/>` + PIPS[shown].map(i => `<circle cx="${6.45 + pipsAt[i][0] * 2.1}" cy="${6.45 + pipsAt[i][1] * 2.1}" r=".17" fill="#14202b"/>`).join(""); }
   const spots = {}; const items = [];
   G.players.forEach((q, pi) => q.tok.forEach((p, t) => { const [x, y] = tokXY(pi, t); const k = x.toFixed(2) + "," + y.toFixed(2); (spots[k] = spots[k] || []).push(1); items.push({pi, t, x, y, k}); }));
   const seen = {};
@@ -231,7 +246,8 @@ const RULES = `<div class="card"><h3>How to play</h3><div class="sub" style="dis
   <p style="margin:0">Roll a <b>6</b> to bring a token out. A 6 also gives you another roll. Three 6s in a row ends your turn.</p>
   <p style="margin:0">Landing on another player's token <b>cuts</b> it: it goes back home and you roll again.</p>
   <p style="margin:0">Squares with a <b>star</b> and the coloured start squares are safe. Nobody can be cut there.</p>
-  <p style="margin:0">You need the exact number to reach the centre. Getting a token in gives you another roll.</p></div></div>`;
+  <p style="margin:0">You need the exact number to reach the centre. Getting a token in gives you another roll.</p>
+  <p style="margin:0">White arrows show the way round. A coloured arrow shows where that colour turns into its home lane. A dashed ring shows where a token will land.</p></div></div>`;
 function panel(){
   if(G.over){
     return `<div class="card turn" style="--pc:#0b5394"><h2>${esc(P(G.rank[0]).name)} wins!</h2></div>
@@ -240,11 +256,15 @@ function panel(){
       <button class="btn go" data-a="menu">New game</button>`;
   }
   const pi = G.turn, c = col(pi), me = P(pi), light = c.key === "yellow";
-  const hint = me.bot ? "Computer is playing…" : G.phase === "roll" ? "Tap Roll." : "Tap a token that is bouncing to move it.";
+  const hint = me.bot ? "Computer is playing…" : G.phase === "roll" ? (G.bonus && G.bonus.pi === pi ? "Bonus roll! Tap Roll again." : "Tap Roll.") : "Tap a bouncing token, or its dashed ring, to move it.";
+  const shownD = G.die || (G.last && G.last.d), lastBy = G.die ? pi : G.last && G.last.pi;
   let h = `${rulesOpen ? RULES + `<button class="btn" data-a="rules">Close the rules</button>` : ""}
     <div class="card turn ${light ? "light" : ""}" style="--pc:${c.c}"><h2>${esc(me.name)}${me.bot ? " (computer)" : ""}</h2><p>${c.name} · ${hint}</p></div>
-    <div class="card"><div class="dicewrap">${dieHTML(G.die, false)}
-      <button class="btn amber" style="flex:1;min-height:72px;font-size:1.3rem" data-a="roll" ${G.phase === "roll" && !me.bot && !busy ? "" : "disabled"}>Roll</button></div></div>
+    ${G.bonus && G.bonus.pi === pi && G.phase === "roll" ? `<div class="card" style="border:3px solid var(--cap);flex-direction:row;align-items:center;gap:12px"><span style="font-size:2rem;line-height:1" aria-hidden="true">↻</span><div><h3>Bonus roll</h3><p class="sub" style="color:var(--ink)">${esc(G.bonus.why)}, so ${esc(me.name)} rolls again.</p></div></div>` : ""}
+    <div class="card"><div class="dicewrap">${dieHTML(shownD, busy && G.phase === "roll")}<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">
+      ${shownD && lastBy !== null && lastBy !== undefined && P(lastBy) ? `<span class="sub" style="color:var(--ink)"><b>${esc(P(lastBy).name)}</b> rolled <b>${shownD}</b></span>` : `<span class="sub">No roll yet</span>`}
+      ${G.note ? `<span class="sub">${esc(G.note)}</span>` : ""}
+      <button class="btn amber" style="min-height:64px;font-size:1.3rem" data-a="roll" ${G.phase === "roll" && !me.bot && !busy ? "" : "disabled"}>${G.bonus && G.bonus.pi === pi && G.phase === "roll" ? "Roll again" : "Roll"}</button></div></div></div>
     <div class="card"><h3>Tokens home</h3><div class="seats">${G.players.map((q, i) => `<div class="seat" style="--pc:${COLS[q.col].c}"><span class="dot"></span>${esc(q.name)}${q.bot ? " (computer)" : ""}${i === G.turn ? " ◀" : ""}<span class="home">${q.tok.filter(p => p === FINISH).length}/4</span></div>`).join("")}</div></div>
     <div class="card"><h3>What happened</h3><p class="sub">${G.log.slice(0, 4).map(esc).join("<br>")}</p></div>`;
   return h;
@@ -271,11 +291,13 @@ let toastT; function toast(t){ const el = $("#toast"); el.textContent = t; el.cl
 /* ---------- Turn flow with gentle animation ---------- */
 function doRoll(){
   if(busy || !G || G.phase !== "roll") return;
-  busy = true; const pi = G.turn; render();
-  const dw = document.querySelector(".die"); if(dw) dw.classList.add("rolling");
-  setTimeout(() => { const d = roll(); busy = false;
+  busy = true; const pi = G.turn; const keepLast = G.last;
+  const spin = setInterval(() => { G.last = {pi, d:1 + Math.floor(Math.random() * 6)}; render(); }, 80);
+  setTimeout(() => { clearInterval(spin); G.last = keepLast; const d = roll(); busy = false;
     if(d !== null){ if(G.phase === "move" || G.turn !== pi || d === 6) say(P(pi).name + " rolled " + d + "."); }
-    if(G.phase === "move"){ const opts = legal(G.turn, G.die); if(opts.length === 1 && !P(G.turn).bot){ busy = true; render(); setTimeout(() => { busy = false; doMove(opts[0]); }, 550); return; } }
+    if(G.phase === "move"){ const all = legal(G.turn, G.die), opts = all.filter((t, k) => all.findIndex(u => P(G.turn).tok[u] === P(G.turn).tok[t]) === k);
+      /* tokens on the same square give the same move, so only ask when there is a real choice */
+      if(opts.length === 1 && !P(G.turn).bot){ busy = true; render(); setTimeout(() => { busy = false; doMove(opts[0]); }, 550); return; } }
     render(); }, 450);
 }
 function doMove(t){
