@@ -1,5 +1,5 @@
 // Keeps the game working without signal: serve from cache first, refresh the cache when online.
-const CACHE = "road-rally-v11";
+const CACHE = "road-rally-v12";
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(["./", "./index.html", "./katan.html", "./ludo.html", "./deal.html", "./ivy-logo.png"])).then(() => self.skipWaiting()));
 });

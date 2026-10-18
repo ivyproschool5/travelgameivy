@@ -1,5 +1,5 @@
 // Keeps the game working without signal: serve from cache first, refresh the cache when online.
-const CACHE = "ivy-rr-v3";
+const CACHE = "ivy-rr-v4";
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(["./", "./index.html", "./settlers.html", "./ludo.html", "./deal.html", "./ivy-logo.png", "./icon-192.png", "./manifest.json"])).then(() => self.skipWaiting()));
 });
