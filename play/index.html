@@ -190,6 +190,16 @@ td.n,th.n{text-align:right}
 .padb{min-height:78px;border-radius:16px;border:0;background:var(--pine);color:var(--pine-ink);font-size:2rem;font-weight:800;touch-action:none}
 .padb.turbo{background:var(--cap);color:var(--cap-ink)}
 .padb:active,.padb.down{transform:scale(.96);filter:brightness(1.1)}
+.ghead{font-family:var(--display);font-weight:800;font-size:1.25rem;margin:0}
+.gsec{display:flex;flex-direction:column;gap:8px}
+.gsec h3{font-family:var(--display);font-weight:700;font-size:1rem;margin:0;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.ggrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+@media (min-width:620px){ .ggrid{grid-template-columns:repeat(3,minmax(0,1fr))} }
+.gt{display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px;min-height:108px;text-decoration:none;color:var(--ink);min-width:0}
+.gt:active{transform:scale(.98)}
+.gt .sign{width:40px;height:40px;font-size:1rem;flex:none}
+.gt b{font-family:var(--display);font-size:1rem;line-height:1.15}
+.gt small{color:var(--muted);font-size:.8rem;line-height:1.3}
 .cardtop{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .say{border:1.5px solid currentColor;background:transparent;color:inherit;border-radius:999px;padding:4px 12px;font-size:.82rem;font-weight:700;min-height:34px;flex:none;opacity:.85}
 .dock .inner{align-items:flex-end}
@@ -900,22 +910,27 @@ const screens = {
     return `
       ${S.tipsSeen ? "" : `<div class="card tips"><h3>Quick start</h3><ol>
         <li>The person in the front seat holds the phone. The driver plays by voice only.</li>
-        <li>Pick a game below. The phone reads each challenge out loud.</li>
+        <li>Pick a game from the list. The phone reads each challenge out loud.</li>
         <li>Tap the name of whoever got it. Points add up on the milestones at the top.</li>
         <li>At night, open Scores and tap <b>End today's drive</b> to crown the day's champion.</li></ol>
         <button class="btn go" data-a="tips-ok">Got it</button></div>`}
-      <div class="games">
-        <button class="game" data-a="go" data-s="spot"><span class="sign diamond"><span>!</span></span><span><b>Spot It</b><small>Look out of the window. Everyone gets a target at their own level.</small></span></button>
-        <button class="game" data-a="go" data-s="quiz"><span class="sign">?</span><span><b>Quick Quiz</b><small>Take turns. Pick the right answer from the choices. Each person gets their own level.</small></span></button>
-        <button class="game" data-a="go" data-s="ant"><span class="sign circle">♪</span><span><b>Antakshari</b><small>Sing a song starting with the letter. Younger players get more time.</small></span></button>
-        <button class="game" data-a="go" data-s="atlas"><span class="sign">A</span><span><b>Atlas Chain</b><small>Next word starts with the last letter. Last one standing wins.</small></span></button>
-        <button class="game" data-a="go" data-s="tq"><span class="sign diamond"><span>20</span></span><span><b>20 Questions</b><small>One person thinks of something. Others ask yes or no questions.</small></span></button>
-        <button class="game" data-a="go" data-s="rbx"><span class="sign">R</span><span><b>Roblox Round</b><small>Roblox quiz with choices, or guess the Roblox game from clues.</small></span></button>
-        <button class="game" data-a="go" data-s="race"><span class="sign diamond"><span>F1</span></span><span><b>Brick Racer</b><small>The old handheld car game. Dodge the traffic, pass the phone, beat each other's best.</small></span></button>
-        <a class="game" href="ludo.html" style="text-decoration:none;color:inherit"><span class="sign circle">L</span><span><b>Ludo</b><small>Indian Ludo for 2 to 4. Roll a 6 to start, cut tokens, race home. Play the computer if you are short of players.</small></span></a>
-        <a class="game" href="deal.html" style="text-decoration:none;color:inherit"><span class="sign diamond"><span>₹</span></span><span><b>Ivy Deal</b><small>Fast property card game for 2 to 5. Collect 3 complete sets to win. Rent, deals and Just Say No.</small></span></a>
-        <a class="game" href="settlers.html" style="text-decoration:none;color:inherit"><span class="sign">S</span><span><b>Ivy Settlers</b><small>A board game of roads, settlements and trading for 3 or 4 players. Best on a tablet at the hotel. First to 10 points wins.</small></span></a>
-      </div>
+      <h2 class="ghead">All games <span class="sub">(10)</span></h2>
+      <section class="gsec"><h3>In the car <span class="sub">the front passenger holds the phone</span></h3><div class="ggrid">
+        <button class="gt" data-a="go" data-s="spot"><span class="sign diamond"><span>!</span></span><b>Spot It</b><small>Find things out of the window</small></button>
+        <button class="gt" data-a="go" data-s="quiz"><span class="sign">?</span><b>Quick Quiz</b><small>Questions at each player's level</small></button>
+        <button class="gt" data-a="go" data-s="ant"><span class="sign circle">♪</span><b>Antakshari</b><small>Sing a song from the letter</small></button>
+        <button class="gt" data-a="go" data-s="atlas"><span class="sign">A</span><b>Atlas Chain</b><small>Word chain, last one standing</small></button>
+        <button class="gt" data-a="go" data-s="tq"><span class="sign diamond"><span>20</span></span><b>20 Questions</b><small>Guess what someone is thinking</small></button>
+        <button class="gt" data-a="go" data-s="rbx"><span class="sign">R</span><b>Roblox Round</b><small>Roblox quiz and guess the game</small></button>
+      </div></section>
+      <section class="gsec"><h3>Pass the phone <span class="sub">one player at a time</span></h3><div class="ggrid">
+        <button class="gt" data-a="go" data-s="race"><span class="sign diamond"><span>F1</span></span><b>Brick Racer</b><small>Retro car race, beat the best score</small></button>
+        <a class="gt" href="ludo.html"><span class="sign circle">L</span><b>Ludo</b><small>2 to 4 players, or play the computer</small></a>
+      </div></section>
+      <section class="gsec"><h3>At the hotel <span class="sub">best on a tablet</span></h3><div class="ggrid">
+        <a class="gt" href="deal.html"><span class="sign diamond"><span>₹</span></span><b>Ivy Deal</b><small>Property card game for 2 to 5</small></a>
+        <a class="gt" href="settlers.html"><span class="sign">I</span><b>Ivy Settlers</b><small>Board game for 3 or 4, first to 10</small></a>
+      </div></section>
       <div class="quick">
         <button class="btn" data-a="go" data-s="settings">Players &amp; settings</button>
         <button class="btn" data-a="go" data-s="scores">Scoreboard</button>
