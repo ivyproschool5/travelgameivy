@@ -1,0 +1,645 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b5394">
+<title>Penalty Shootout</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Poppins:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: the pitch fills the screen (tap anywhere on it to kick); the score panel sits beside it on tablets and below it on phones. */
+:root{
+  --bg:#ffffff; --surface:#ffffff; --surface-2:#eaf4fa; --ink:#14202b; --muted:#526a7d; --line:#d3e3ee;
+  --pine:#0b5394; --pine-ink:#ffffff; --sky:#1a98cb; --cap:#f7a61b; --cap-ink:#14202b; --bad:#b0422d; --good:#1d7a4b;
+  --red:#d83a3a; --green:#2e9e4f; --yellow:#f2b705; --blue:#1f6fd1;
+  --display:"Montserrat","Open Sans",system-ui,sans-serif; --body:"Poppins","Open Sans",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --bg:#0b1726; --surface:#12233a; --surface-2:#1a3150; --ink:#eaf2f8; --muted:#9fb4c6; --line:#244263; --pine:#3aaee0; --pine-ink:#04121f; color-scheme:dark; }}
+:root[data-theme="dark"]{ --bg:#0b1726; --surface:#12233a; --surface-2:#1a3150; --ink:#eaf2f8; --muted:#9fb4c6; --line:#244263; --pine:#3aaee0; --pine-ink:#04121f; color-scheme:dark; }
+*{box-sizing:border-box}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45;-webkit-tap-highlight-color:transparent}
+button,input,select{font:inherit;color:inherit} button{cursor:pointer}
+:focus-visible{outline:3px solid var(--cap);outline-offset:2px}
+[hidden]{display:none!important}
+header{background:#0b5394;color:#fff;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-block:10px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header h1{font-family:var(--display);font-weight:800;font-size:1.35rem;margin:0;flex:1}
+.hbtn{background:rgba(255,255,255,.14);border:0;color:#fff;border-radius:10px;padding:8px 12px;font-weight:600;text-decoration:none;font-size:.88rem}
+.hbtn.back{background:#fff;color:#0b5394;font-weight:800}
+.logo{background:#fff;border-radius:8px;padding:3px 6px;line-height:0} .logo img{height:28px;width:auto;display:block}
+main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start;padding-block:14px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));max-width:1200px;margin:0 auto}
+@media (max-width: 860px){ main{grid-template-columns:1fr} }
+#board{width:100%;max-width:min(100%, calc(100vh - 110px));aspect-ratio:1;display:block;margin:0 auto;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+.panel{display:flex;flex-direction:column;gap:12px;min-width:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.turn{background:var(--pc);color:#fff;border:0} .turn.light{color:#14202b}
+.turn h2{font-family:var(--display);font-weight:800;font-size:1.5rem;margin:0;line-height:1.1} .turn p{margin:0}
+h3{font-family:var(--display);font-weight:700;font-size:1.05rem;margin:0}
+.sub{color:var(--muted);margin:0;font-size:.92rem}
+.btn{border:0;border-radius:12px;padding:12px 14px;min-height:52px;font-weight:700;background:var(--surface-2);color:var(--ink)}
+.btn.go{background:var(--pine);color:var(--pine-ink)} .btn.amber{background:var(--cap);color:var(--cap-ink)}
+.btn:disabled{opacity:.4;cursor:default}
+.row{display:flex;gap:8px;flex-wrap:wrap} .row .btn{flex:1 1 0}
+.dicewrap{display:flex;align-items:center;gap:14px}
+.diebtn{border:0;background:none;padding:0;border-radius:18px;flex:none;touch-action:manipulation} .diebtn:disabled{cursor:default}
+.rollbtn{min-height:76px;font-size:1.35rem;touch-action:manipulation}
+.oneline{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rollhit{cursor:pointer}
+html{touch-action:manipulation}
+.turn p{min-height:2.9em}
+.die{width:72px;height:72px;border-radius:16px;background:#fff;border:3px solid #0b5394;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:9px;flex:none}
+.die i{width:12px;height:12px;border-radius:50%;background:#14202b;place-self:center;visibility:hidden}
+.die.rolling{animation:shake .5s ease}
+@keyframes shake{25%{transform:rotate(-14deg)}50%{transform:rotate(12deg)}75%{transform:rotate(-6deg)}}
+.seats{display:grid;gap:8px}
+.seat{display:flex;align-items:center;gap:10px;font-weight:600}
+.seat .dot{width:16px;height:16px;border-radius:50%;background:var(--pc);flex:none}
+.seat .home{margin-left:auto;font-family:var(--display);font-weight:800}
+.setup{max-width:640px;margin:20px auto;display:flex;flex-direction:column;gap:14px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.setup h2{font-family:var(--display);font-weight:800;font-size:1.8rem;margin:0}
+.pl{display:flex;align-items:center;gap:10px} .pl input[type=checkbox]{width:28px;height:28px;accent-color:#0b5394}
+.ivy{font-size:.85rem;color:var(--muted)} .ivy a{color:var(--pine);font-weight:700}
+.tok{cursor:pointer} .tok.can{animation:pulse .9s ease-in-out infinite}
+@keyframes pulse{50%{transform:translateY(-.12px) scale(1.12)}}
+.toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 70px);transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;font-weight:700;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9;max-width:90vw;text-align:center}
+.toast.show{opacity:1}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+
+
+/* Penalty shootout */
+main.play{grid-template-columns:minmax(0,1fr) 330px}
+@media (max-width: 860px){ main.play{grid-template-columns:1fr} }
+.stage{position:relative;width:100%;height:calc(100vh - 100px);height:calc(100dvh - 100px);min-height:380px;border-radius:20px;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;cursor:pointer;
+  box-shadow:0 18px 34px -16px rgba(13,42,64,.45);background:#3f9b4a}
+#pitch{display:block;width:100%;height:100%}
+.aimbar{position:absolute;left:10px;right:10px;bottom:10px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;z-index:2}
+.aimbar button{min-height:56px;border-radius:14px;border:1.5px solid rgba(255,255,255,.35);background:rgba(6,22,40,.6);color:#fff;font-weight:700;font-size:1rem;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);touch-action:manipulation}
+.aimbar button.on{background:#fff;color:#0b5394;border-color:#f7a61b;box-shadow:0 0 0 3px rgba(247,166,27,.55)}
+@media (max-width: 860px){ .stage{height:auto;aspect-ratio:3/4;max-height:68vh;min-height:0} }
+@media (max-width: 860px) and (min-width: 600px){ .stage{aspect-ratio:4/3;max-height:62vh} }
+.scoreline{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.turn{background:#0b5394;color:#fff}
+.big{font-family:var(--display);font-weight:800;font-size:2.6rem;line-height:1;font-variant-numeric:tabular-nums;text-align:right}
+.big small{display:block;font-size:.8rem;font-weight:600;opacity:.85;font-family:var(--body)}
+.target{border:1.5px solid var(--cap)!important;flex-direction:column;gap:2px}
+.balls{display:flex;gap:6px;flex-wrap:wrap}
+.bl{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:.9rem;background:var(--surface-2);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
+.bl.g{background:#2e9e4f;color:#fff;box-shadow:none}
+.bl.s{background:var(--grad-amber,#f7a61b);color:#2b1a00;box-shadow:none}
+.bl.m{background:#c0392b;color:#fff;box-shadow:none}
+.bl.e{background:transparent;box-shadow:none;border:1.5px dashed var(--line)}
+.srow{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--line);font-size:.95rem}
+.srow:last-child{border-bottom:0}
+.srow b{text-align:right}
+.prow{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.seg{display:inline-flex;background:var(--surface-2);border-radius:999px;padding:3px;gap:2px;box-shadow:inset 0 0 0 1px var(--line)}
+.seg button{border:0;background:transparent;border-radius:999px;padding:7px 12px;font-weight:600;font-size:.85rem;min-height:40px;color:var(--ink)}
+.seg button.on{background:var(--grad-go,#0b5394);color:#fff;box-shadow:0 4px 10px -4px rgba(11,83,148,.6)}
+.cover{position:fixed;inset:0;z-index:20;background:var(--grad,#0b5394);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:24px}
+.cover h2{font-family:var(--display);font-weight:800;font-size:3.2rem;margin:0;line-height:1;letter-spacing:-.03em}
+.rulesbox{position:fixed;inset:auto 0 0 0;z-index:25;max-height:70vh;overflow:auto;background:var(--surface);padding:16px;border-radius:20px 20px 0 0;box-shadow:0 -10px 30px rgba(0,0,0,.25);display:flex;flex-direction:column;gap:10px;max-width:640px;margin:0 auto}
+.legend{font-size:.8rem;color:var(--muted);margin:0}
+
+/* ===== Visual refresh (styling only; layout and behaviour unchanged) ===== */
+:root{
+  --bg:#f3f7fb; --surface:#ffffff; --surface-2:#edf4fa; --line:#dde8f1;
+  --display:"Montserrat","Open Sans",system-ui,sans-serif; --body:"Poppins","Open Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --grad:linear-gradient(135deg,#0b5394 0%,#11679f 55%,#1a98cb 100%);
+  --grad-go:linear-gradient(180deg,#1478b5 0%,#0b5394 100%);
+  --grad-amber:linear-gradient(180deg,#ffbd45 0%,#f7a61b 100%);
+  --ring:0 0 0 4px rgba(26,152,203,.22);
+  --sh-1:0 1px 2px rgba(13,42,64,.05),0 1px 3px rgba(13,42,64,.05);
+  --sh-2:0 1px 2px rgba(13,42,64,.04),0 8px 24px -6px rgba(13,42,64,.12);
+  --sh-3:0 18px 40px -12px rgba(11,83,148,.35);
+  --sh-go:0 8px 18px -8px rgba(11,83,148,.7);
+  --sh-amber:0 8px 18px -8px rgba(214,128,0,.75);
+  --ease:cubic-bezier(.2,.8,.2,1);
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#08121f; --surface:#101e31; --surface-2:#172a43; --line:#22395a;
+  --grad:linear-gradient(135deg,#0a3f73 0%,#0e5a92 60%,#147fb0 100%);
+  --grad-go:linear-gradient(180deg,#5cc3ec 0%,#3aaee0 100%);
+  --sh-1:0 1px 2px rgba(0,0,0,.35); --sh-2:0 1px 2px rgba(0,0,0,.3),0 10px 26px -10px rgba(0,0,0,.6);
+  --sh-3:0 18px 40px -14px rgba(0,0,0,.7); --sh-go:0 8px 18px -8px rgba(58,174,224,.55); }}
+:root[data-theme="dark"]{
+  --bg:#08121f; --surface:#101e31; --surface-2:#172a43; --line:#22395a;
+  --grad:linear-gradient(135deg,#0a3f73 0%,#0e5a92 60%,#147fb0 100%);
+  --grad-go:linear-gradient(180deg,#5cc3ec 0%,#3aaee0 100%);
+  --sh-1:0 1px 2px rgba(0,0,0,.35); --sh-2:0 1px 2px rgba(0,0,0,.3),0 10px 26px -10px rgba(0,0,0,.6);
+  --sh-3:0 18px 40px -14px rgba(0,0,0,.7); --sh-go:0 8px 18px -8px rgba(58,174,224,.55); }
+
+html{background-color:var(--bg)}
+body{background:radial-gradient(900px 420px at 85% -120px,rgba(26,152,203,.12),transparent 70%) no-repeat,var(--bg);min-height:100vh;
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility}
+h1,h2,h3{letter-spacing:-.015em}
+:focus-visible{outline:none;box-shadow:var(--ring),0 0 0 2px var(--sky)!important}
+
+/* Header bar */
+header{background:var(--grad);box-shadow:0 1px 0 rgba(255,255,255,.08) inset,0 6px 20px -10px rgba(11,83,148,.6);position:relative;z-index:2}
+header h1{letter-spacing:-.02em}
+.hbtn{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);border-radius:999px;
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);transition:background .18s var(--ease),transform .12s var(--ease)}
+.hbtn:hover{background:rgba(255,255,255,.22)}
+.hbtn:active{transform:scale(.96)}
+.hbtn.back{background:#fff;color:#0b5394;border-color:#fff;box-shadow:0 4px 12px -4px rgba(0,0,0,.35)}
+.hbtn.back:hover{background:#f1f7fc}
+.logo{border-radius:10px;box-shadow:0 4px 12px -4px rgba(0,0,0,.3)}
+
+/* Surfaces */
+.card{border-color:var(--line);border-radius:18px;box-shadow:var(--sh-2)}
+.turn{background-image:linear-gradient(135deg,rgba(255,255,255,.2),rgba(255,255,255,0) 55%,rgba(0,0,0,.1));box-shadow:var(--sh-3);border-radius:18px}
+.sub{line-height:1.5}
+
+/* Buttons */
+.btn{border-radius:14px;letter-spacing:.005em;box-shadow:inset 0 0 0 1px var(--line);
+  transition:transform .12s var(--ease),box-shadow .2s var(--ease),filter .2s var(--ease),background-color .2s var(--ease)}
+.btn:hover:not(:disabled){filter:brightness(1.03);box-shadow:inset 0 0 0 1px var(--line),var(--sh-1)}
+.btn:active:not(:disabled){transform:translateY(1px) scale(.98)}
+.btn.go{background:var(--grad-go);box-shadow:var(--sh-go)}
+.btn.go:hover:not(:disabled){box-shadow:var(--sh-go);filter:brightness(1.07)}
+.btn.amber{background:var(--grad-amber);box-shadow:var(--sh-amber),inset 0 1px 0 rgba(255,255,255,.45)}
+.btn.amber:hover:not(:disabled){box-shadow:var(--sh-amber),inset 0 1px 0 rgba(255,255,255,.45)}
+.btn.bad{box-shadow:none}
+.btn:disabled{opacity:.5;filter:saturate(.6)}
+.btn.go:disabled,.btn.amber:disabled{box-shadow:none}
+.panel{padding-inline:6px;margin-inline:-6px}
+
+/* Forms */
+input[type=text],input[type=number],input:not([type]),select{border-radius:12px!important;border-color:var(--line)!important;transition:border-color .15s,box-shadow .15s}
+input[type=text]:focus,input:not([type]):focus,select:focus{outline:none;border-color:var(--sky)!important;box-shadow:var(--ring)}
+input[type=checkbox]{accent-color:var(--sky)!important}
+
+/* Toast */
+.toast{background:rgba(13,42,64,.92);color:#fff;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  box-shadow:0 14px 34px -10px rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.1)}
+
+/* Setup screens */
+.setup h2{letter-spacing:-.025em}
+.pl{border-radius:12px}
+.ivy a{text-decoration:none;border-bottom:1.5px solid currentColor}
+/* ===== end visual refresh ===== */
+</style>
+</head>
+<body>
+<header>
+  <a class="hbtn back" href="./" aria-label="Back to all games">‹ Back</a>
+  <h1>Penalty Shootout</h1>
+  <button class="hbtn" data-a="rules">Rules</button>
+  <button class="hbtn" id="talkBtn" data-a="talk">Voice on</button>
+  <button class="hbtn" data-a="menu">New game</button>
+  <a class="logo" href="https://ivyproschool.com/" target="_blank" rel="noopener" aria-label="Ivy Professional School website"><img src="ivy-logo.png" alt="Ivy Professional School"></a>
+</header>
+<div id="app"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+/* ---------- Setup ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const PUBLIC = typeof location !== "undefined" && /\/play\//.test(location.pathname);
+const RALLY_KEY = PUBLIC ? "ivy-rr-v1" : "himachal-rally-v1", KEY = PUBLIC ? "ivy-penalty-v1" : "family-penalty-v1";
+/* green = half width of the green zone on the bar (bar runs 0 to 1, centre 0.5); period = seconds for the marker to cross the bar once.
+   guess = chance the keeper dives the way you shoot; cornerSave / midSave = chance he stops a clean (green) shot when he guessed right.
+   react / dive = keeper reaction delay and dive time in ms (Easy keeper is slow). */
+const LEVELS = {
+  easy:{name:"Easy", green:.14, period:1.6, guess:.25, cornerSave:.3, midSave:.6, react:180, dive:560},
+  medium:{name:"Medium", green:.09, period:1.2, guess:.38, cornerSave:.45, midSave:.75, react:110, dive:440},
+  hard:{name:"Hard", green:.06, period:.9, guess:.5, cornerSave:.6, midSave:.85, react:60, dive:360}
+};
+const YEL = .1;               /* width of each yellow band beside the green */
+const AIMWORD = {"-1":"left", "0":"the middle", "1":"right"};
+let aimSel = 0;
+
+let G = null, menuOpen = false, rulesOpen = false, setupPlayers = null, opts = {kicks:5, lv:{}};
+let talk = true;
+let A = null; /* the current kick, never saved */
+
+/* ---------- Voice, sound and saving ---------- */
+const TTS = typeof speechSynthesis !== "undefined"; let voice = null;
+function pickVoice(){ if(!TTS) return; const vs = speechSynthesis.getVoices();
+  voice = vs.find(v => /^en[-_]US/i.test(v.lang) && /natural|enhanced|premium|online/i.test(v.name)) || vs.find(v => /^en[-_]US/i.test(v.lang)) || vs.find(v => /^en/i.test(v.lang)) || null; }
+if(TTS){ pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
+function say(t){ if(!TTS || !talk || typeof SpeechSynthesisUtterance === "undefined") return; try{ speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(t); if(voice){ u.voice = voice; u.lang = voice.lang; } u.rate = 1; speechSynthesis.speak(u); }catch(e){} }
+let AC = null;
+function audio(){ if(AC) return AC; try{ AC = new (window.AudioContext || window.webkitAudioContext)(); }catch(e){} return AC; }
+function noise(dur, freq, q, gain, attack){ const ac = audio(); if(!ac) return; try{
+  const n = ac.sampleRate * dur, buf = ac.createBuffer(1, n, ac.sampleRate), d = buf.getChannelData(0); for(let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+  const src = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(); src.buffer = buf; f.type = "bandpass"; f.frequency.value = freq; f.Q.value = q;
+  const t = ac.currentTime; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(gain, t + attack); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(f); f.connect(g); g.connect(ac.destination); src.start(); }catch(e){} }
+const sfx = {
+  kick(){ noise(.1, 240, .9, .8, .002); noise(.05, 1400, 1.5, .25, .002); },
+  cheer(){ noise(2.2, 900, .5, .35, .3); },
+  save(){ noise(.15, 600, 2, .4, .003); noise(1, 420, .7, .12, .25); },
+  groan(){ noise(1.1, 380, .7, .14, .2); }
+};
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify({G, talk, opts})); }catch(e){} }
+function load(){ try{ const d = JSON.parse(localStorage.getItem(KEY)); if(d){ talk = d.talk !== false; if(d.opts){ opts = Object.assign({kicks:5, lv:{}}, d.opts); if(opts.aim !== undefined) aimSel = opts.aim; } if(d.G && d.G.v === 1) G = d.G; } }catch(e){} }
+function rallyPlayers(){
+  try{ const d = JSON.parse(localStorage.getItem(RALLY_KEY)); if(d && d.players && d.players.length) return d.players.map(p => ({id:p.id, name:p.name})); }catch(e){}
+  if(!PUBLIC) return [["mom","Mom"],["dad","Dad"],["kippi","Kippi"],["zubbu","Zubbu"]].map(([id, name]) => ({id, name}));
+  return [1,2].map(i => ({id:"p" + i, name:"Player " + i}));
+}
+function sendToRally(){
+  try{ const d = JSON.parse(localStorage.getItem(RALLY_KEY)); if(!d || !d.players || G.players.length < 2) return false;
+    const pts = [25, 10], got = [];
+    ranking().slice(0, 2).forEach((pi, k) => { const id = G.players[pi].id; if(!d.players.some(p => p.id === id)) return;
+      d.today = d.today || {}; d.today[id] = (d.today[id] || 0) + pts[k]; d.log = d.log || []; d.log.push({id, pts:pts[k], label:"Penalty Shootout place " + (k + 1)}); got.push(G.players[pi].name + " +" + pts[k]); });
+    if(!got.length) return false;
+    localStorage.setItem(RALLY_KEY, JSON.stringify(d)); G.got = got; return true; }catch(e){ return false; }
+}
+
+/* ---------- Game state ---------- */
+/* stage "main": everyone takes G.kicks kicks. stage "sd": sudden death, the tied players take one kick each per round. */
+function newGame(players){
+  G = {v:1, players:players.map(p => ({id:p.id, name:p.name, level:p.level})), kicks:opts.kicks,
+    res:players.map(() => []), sd:players.map(() => []), stage:"main", round:0, queue:players.map((_, i) => i), qi:0,
+    phase:"cover", note:"", last:"", sent:false, tried:false};
+}
+const CI = () => G.queue[G.qi], P = () => G.players[CI()];
+const cnt = (arr, r) => arr.filter(x => x === r).length;
+const goals = i => cnt(G.res[i], "g") + cnt(G.sd[i], "g");
+const misses = i => cnt(G.res[i], "m") + cnt(G.sd[i], "m");
+/* Most goals wins (sudden death goals count too, so the sudden death winner always comes out on top).
+   Other ties: fewer missed kicks, then earlier in the shooting order. */
+function ranking(){ return G.players.map((_, i) => i).sort((a, b) => goals(b) - goals(a) || misses(a) - misses(b) || a - b); }
+const turnTotal = () => G.stage === "main" ? G.kicks : 1;
+const turnTaken = () => G.stage === "main" ? G.res[CI()].length : (G.sd[CI()].length >= G.round ? 1 : 0);
+const lvl = () => LEVELS[P().level] || LEVELS.medium;
+const names = list => list.length <= 1 ? list.join("") : list.slice(0, -1).join(", ") + " and " + list[list.length - 1];
+
+/* ---------- One kick ---------- */
+const rnd = (a, b) => a + Math.random() * (b - a);
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+const now = () => performance.now();
+/* marker slides left to right and back; 0 = left end, 1 = right end */
+function markerAt(t){ if(t < A.t0) return 0; const f = ((t - A.t0) / 1000 / A.period) % 2; return f < 1 ? f : 2 - f; }
+function zoneOf(pos, g){ const d = Math.abs(pos - .5); return d <= g ? "green" : d <= g + YEL ? "yellow" : pos < .5 ? "soft" : "hard"; }
+function startKick(delay){
+  if(!G || G.phase !== "kick" || menuOpen) return;
+  const L = lvl();
+  A = {state:"ready", t0:now() + (delay === undefined ? 600 : delay), period:L.period, green:L.green};
+  renderPanel();
+}
+function kick(){
+  if(!A || A.state !== "ready" || !G || G.phase !== "kick") return;
+  const t = now(); if(t < A.t0) return;      /* marker not moving yet: ignore the tap */
+  const L = lvl(), pos = markerAt(t), zone = zoneOf(pos, L.green), aim = aimSel;
+  let dive = aim; if(Math.random() >= L.guess) dive = pick([-1, 0, 1].filter(d => d !== aim));
+  let res, reason, end;   /* end = where the ball finishes: goal units u (-1 left post, 1 right post) and v (0 ground, 1 crossbar), or "hands" */
+  if(zone === "hard"){ res = "m"; reason = "Over the bar: too much power"; end = {u:(aim || rnd(-.3, .3)) * .7, v:1.5}; }
+  else if(zone === "soft"){ const s = aim || pick([-1, 1]); res = "m"; reason = "Wide of the post: not enough power"; end = {u:s * 1.32, v:.15}; }
+  else {
+    const green = zone === "green";
+    if(dive === aim){
+      const p = aim ? (green ? L.cornerSave : Math.min(.95, L.cornerSave + .35)) : (green ? L.midSave : Math.min(.95, L.midSave + .25));
+      if(Math.random() < p){ res = "s"; end = "hands"; reason = !aim ? "Straight at the keeper" : green ? "Great save" : "Great save: the shot was too weak"; }
+      else { res = "g"; reason = aim ? "Right in the corner, out of reach" : "Over the keeper's hands"; end = aim ? {u:aim * .9, v:.86} : {u:rnd(-.12, .12), v:.9}; }
+    } else {
+      res = "g"; reason = aim === 0 ? "Down the middle as the keeper dived" : dive === 0 ? "Keeper stayed in the middle" : "Keeper dived the wrong way";
+      end = aim ? (green ? {u:aim * .82, v:rnd(.55, .8)} : {u:aim * .55, v:rnd(.2, .4)}) : (green ? {u:rnd(-.08, .08), v:rnd(.5, .7)} : {u:rnd(-.1, .1), v:rnd(.25, .4)});
+    }
+  }
+  if(end === "hands"){ const h = handsU(dive); end = {u:h.u, v:h.v, hands:true}; }
+  Object.assign(A, {state:"fly", tk:t, stop:pos, zone, aim, dive, res, reason, end, flyDur:zone === "yellow" ? 950 : zone === "green" ? 750 : 820,
+    kStart:t + L.react, kDur:L.dive});
+  sfx.kick();
+}
+function land(){
+  const t = now(), i = CI(), p = P(); A.state = "result"; A.tRes = t;
+  if(G.stage === "main") G.res[i].push(A.res); else G.sd[i].push(A.res);
+  const big = A.res === "g" ? "GOAL!" : A.res === "s" ? "SAVED!" : "MISSED";
+  G.last = big + " " + A.reason + ".";
+  if(A.res === "g") sfx.cheer(); else if(A.res === "s") sfx.save(); else sfx.groan();
+  let line = A.res === "g" ? pick(["Goal!", "It's in!", "Goal! Lovely penalty."]) + " " + A.reason + "." : A.res === "s" ? (A.reason.startsWith("Great save") ? pick(["Saved! Great save by the keeper.", "Saved! The keeper gets a glove to it."]) : "Saved! Straight at the keeper.") : (A.end.v > 1 ? "Over the bar!" : "Wide of the post!");
+  const done = turnTaken() >= turnTotal();
+  if(done && G.stage === "main") line += " " + p.name + " finishes with " + goals(i) + (goals(i) === 1 ? " goal." : " goals.");
+  say(line);
+  save(); renderPanel();
+  const me = A;
+  setTimeout(() => { if(A !== me || !G || G.phase !== "kick") return; if(done){ A = null; G.phase = "turnEnd"; render(); } else startKick(500); }, 2100);
+}
+/* After a player's turn: next player, or decide the winner, or start sudden death */
+function advance(){
+  G.qi++;
+  if(G.qi < G.queue.length){ G.phase = "cover"; return; }
+  if(G.players.length < 2){ G.phase = "over"; return; }
+  if(G.stage === "main"){
+    const mx = Math.max(...G.players.map((_, i) => goals(i))), tied = G.players.map((_, i) => i).filter(i => goals(i) === mx);
+    if(tied.length < 2){ G.phase = "over"; return; }
+    G.stage = "sd"; G.round = 1; G.queue = tied; G.qi = 0; G.phase = "cover";
+    G.note = names(tied.map(i => G.players[i].name)) + " are level on " + mx + (mx === 1 ? " goal" : " goals") + ". One kick each: score to stay in.";
+    say("It's a tie! Sudden death."); return;
+  }
+  const scored = G.queue.filter(i => G.sd[i][G.round - 1] === "g");
+  if(scored.length === 1){ G.phase = "over"; return; }
+  G.note = scored.length === 0 ? "Nobody scored, so everyone goes again." : scored.length === G.queue.length ? "Everyone scored, so everyone goes again." : names(scored.map(i => G.players[i].name)) + " scored and go again.";
+  if(scored.length) G.queue = scored; G.round++; G.qi = 0; G.phase = "cover";
+}
+
+/* ---------- Main loop ---------- */
+let raf = 0;
+function loop(){
+  raf = requestAnimationFrame(loop);
+  if(A && A.state === "fly" && now() >= A.tk + A.flyDur) land();
+  draw();
+}
+
+/* ---------- Drawing ---------- */
+let cv = null, cx = null, W = 0, H = 0, DPR = 1, crowd = null;
+function fit(){ cv = $("#pitch"); if(!cv) return false; const r = cv.getBoundingClientRect(); DPR = Math.min(2, window.devicePixelRatio || 1);
+  if(Math.round(r.width * DPR) !== cv.width || Math.round(r.height * DPR) !== cv.height){ cv.width = Math.round(r.width * DPR); cv.height = Math.round(r.height * DPR); }
+  W = r.width; H = r.height; cx = cv.getContext("2d"); cx.setTransform(DPR, 0, 0, DPR, 0, 0); return W > 0 && H > 0; }
+/* View from behind the penalty spot: goal at the top, ball near the bottom, the kick bar under the ball, aim buttons at the very bottom. */
+function geo(){
+  /* built from the bottom up: aim buttons, kick bar, ball on the spot, then the goal as big as fits */
+  const bw = Math.min(W - 32, 560), bh = 30, by = H - 70 - 58, bx = (W - bw) / 2, spotY = by - 66;
+  const top = Math.max(H * .17, 64), gh = Math.max(40, Math.min(W * .92 / 3, (spotY - top) / 2.05)), gw = gh * 3, gx = W / 2;
+  const GL = spotY - gh * 1.05, gt = GL - gh, br = Math.max(9, gw * .03), kh = gh * .8;
+  return {gw, gh, gx, gt, GL, bw, bh, by, bx, spotY, br, kh};
+}
+const gp = (g, u, v) => [g.gx + u * g.gw / 2, g.GL - v * g.gh];
+const easeOut = u => 1 - Math.pow(1 - u, 3);
+const clamp01 = u => Math.max(0, Math.min(1, u));
+/* keeper pose: d = dive direction, k = 0..1 progress */
+function pose(g, d, k){
+  if(!d) return {x:g.gx, y:g.GL - Math.sin(k * Math.PI) * g.gh * .1, a:0};
+  return {x:g.gx + d * k * g.gw * .15, y:g.GL - Math.sin(k * Math.PI) * g.gh * .1, a:d * 1.1 * k};
+}
+function handsXY(g, d, k){ const p = pose(g, d, k);
+  if(!d) return [p.x, p.y - g.kh * .62];
+  const r = g.kh * 1.12; return [p.x + r * Math.sin(p.a), p.y - r * Math.cos(p.a)]; }
+/* hands at full stretch in goal units, used to aim a saved ball straight into the gloves */
+function handsU(d){ const g = {gw:2, gh:2 / 3, gx:0, GL:0, kh:2 / 3 * .8}, h = handsXY(g, d, 1); return {u:h[0], v:-h[1] / g.gh}; }
+function keeperK(t){ if(!A || A.state === "ready") return 0; return easeOut(clamp01((t - A.kStart) / A.kDur)); }
+function draw(){
+  if(!fit()) return;
+  const g = geo(), t = now();
+  drawScene(g);
+  drawKeeper(g, t);
+  drawGoalFrame(g);
+  /* aim ring in the goal before the kick */
+  if(A && A.state === "ready"){
+    const [ax, ay] = gp(g, aimSel * .72, aimSel ? .55 : .6), r = g.gw * .075;
+    cx.save(); cx.setLineDash([6, 5]); cx.lineWidth = 3; cx.strokeStyle = "#f7a61b"; cx.fillStyle = "rgba(247,166,27,.18)";
+    cx.beginPath(); cx.arc(ax, ay, r, 0, 7); cx.fill(); cx.stroke(); cx.setLineDash([]);
+    label("AIM", ax, ay - r - 9, 12, "#f7a61b"); cx.restore();
+  }
+  drawBall(g, t);
+  drawBar(g, t);
+  drawOverlay(g, t);
+}
+function drawScene(g){
+  const sb = g.gt - Math.max(4, g.gw * .018);     /* bottom of the stands: the ad boards sit just above the crossbar */
+  let gr = cx.createLinearGradient(0, 0, 0, H * .08); gr.addColorStop(0, "#4fb3e6"); gr.addColorStop(1, "#cfeefb"); cx.fillStyle = gr; cx.fillRect(0, 0, W, H * .08);
+  cx.fillStyle = "#24364a"; cx.fillRect(0, H * .08, W, sb - H * .08);
+  if(!crowd || crowd.w !== W || crowd.h !== H){ crowd = {w:W, h:H, dots:[]}; const cols = ["#f7a61b","#ffffff","#1a98cb","#e05a5a","#7fd17f","#f3d36b","#c48df0"]; for(let i = 0; i < W * 1.6; i++) crowd.dots.push([Math.random(), Math.random(), cols[i % cols.length]]); }
+  const cheer = A && A.state === "result" && A.res === "g" ? Math.sin(now() / 60) * 2 : 0;
+  cx.globalAlpha = .85; crowd.dots.forEach(([u, v, c], i) => { cx.fillStyle = c; cx.fillRect(u * W, H * .08 + 3 + v * (sb - H * .08 - 16) + (i % 2 ? cheer : -cheer), 2.4, 2.4); }); cx.globalAlpha = 1;
+  cx.fillStyle = "#0b5394"; cx.fillRect(0, sb - 12, W, 12);
+  cx.fillStyle = "#fff"; cx.font = `700 ${Math.max(7, Math.min(11, H * .018))}px Montserrat, sans-serif`; cx.textAlign = "center"; cx.textBaseline = "middle";
+  for(let x = W * .17; x < W; x += W * .33) cx.fillText(PUBLIC ? "IVY ROAD RALLY" : "HIMACHAL ROAD RALLY", x, sb - 6);
+  /* grass with mowing stripes that widen towards the viewer */
+  let y = sb, k = 0, hgt = Math.max(8, g.gh * .14);
+  while(y < H){ cx.fillStyle = k % 2 ? "#3f9b4a" : "#4aab56"; cx.fillRect(0, y, W, hgt + 1); y += hgt; hgt *= 1.22; k++; }
+  /* pitch markings */
+  cx.strokeStyle = "rgba(255,255,255,.85)"; cx.lineWidth = 2.5;
+  cx.beginPath(); cx.moveTo(0, g.GL); cx.lineTo(W, g.GL); cx.stroke();
+  const sixY = g.GL + g.gh * .45;
+  cx.beginPath(); cx.moveTo(g.gx - g.gw * .78, g.GL); cx.lineTo(g.gx - g.gw * .95, sixY); cx.lineTo(g.gx + g.gw * .95, sixY); cx.lineTo(g.gx + g.gw * .78, g.GL); cx.stroke();
+  cx.beginPath(); cx.moveTo(g.gx - g.gw * 1.25, g.GL); cx.lineTo(g.gx - g.gw * 2.1, H); cx.moveTo(g.gx + g.gw * 1.25, g.GL); cx.lineTo(g.gx + g.gw * 2.1, H); cx.stroke();
+  cx.fillStyle = "rgba(255,255,255,.9)"; cx.beginPath(); cx.ellipse(g.gx, g.spotY + g.br * .6, g.br * .9, g.br * .35, 0, 0, 7); cx.fill();
+  /* net */
+  const L = g.gx - g.gw / 2, T = g.GL - g.gh;
+  cx.fillStyle = "rgba(255,255,255,.22)"; cx.fillRect(L, T, g.gw, g.gh);
+  cx.strokeStyle = "rgba(255,255,255,.4)"; cx.lineWidth = 1;
+  const step = g.gw / 26;
+  for(let x = L + step; x < L + g.gw; x += step){ cx.beginPath(); cx.moveTo(x, T); cx.lineTo(x, g.GL); cx.stroke(); }
+  for(let yy = T + step; yy < g.GL; yy += step){ cx.beginPath(); cx.moveTo(L, yy); cx.lineTo(L + g.gw, yy); cx.stroke(); }
+}
+function drawGoalFrame(g){
+  const L = g.gx - g.gw / 2, T = g.GL - g.gh, pw = Math.max(4, g.gw * .018);
+  cx.fillStyle = "rgba(0,0,0,.18)"; cx.fillRect(L - pw / 2 + 3, T - pw / 2 + 3, g.gw + pw, pw);
+  cx.fillStyle = "#ffffff"; cx.fillRect(L - pw / 2, T - pw / 2, pw, g.gh + pw / 2); cx.fillRect(L + g.gw - pw / 2, T - pw / 2, pw, g.gh + pw / 2); cx.fillRect(L - pw / 2, T - pw / 2, g.gw + pw, pw);
+}
+function drawKeeper(g, t){
+  const d = A && A.state !== "ready" ? A.dive : 0, k = keeperK(t), p = pose(g, d, k), u = g.kh;
+  const sway = A && A.state === "ready" ? Math.sin(t / 260) * g.gw * .02 : 0;
+  cx.save();
+  cx.fillStyle = "rgba(0,0,0,.2)"; cx.beginPath(); cx.ellipse(p.x + sway + (d ? d * u * .3 * k : 0), g.GL + 2, u * (.22 + .3 * k * Math.abs(d)), u * .05, 0, 0, 7); cx.fill();
+  cx.translate(p.x + sway, p.y); cx.rotate(p.a);
+  /* legs, shorts, shirt, head */
+  cx.fillStyle = "#1d2b38"; rr(-.13 * u, -.42 * u, .1 * u, .42 * u, .03 * u); cx.fill(); rr(.03 * u, -.42 * u, .1 * u, .42 * u, .03 * u); cx.fill();
+  cx.fillStyle = "#14202b"; rr(-.16 * u, -.5 * u, .32 * u, .14 * u, .04 * u); cx.fill();
+  cx.fillStyle = "#d83a3a"; rr(-.17 * u, -.8 * u, .34 * u, .34 * u, .07 * u); cx.fill();
+  cx.fillStyle = "#fff"; cx.font = `800 ${Math.max(8, .14 * u)}px Montserrat, sans-serif`; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText("1", 0, -.63 * u);
+  cx.fillStyle = "#e0b08a"; cx.beginPath(); cx.arc(0, -.9 * u, .1 * u, 0, 7); cx.fill();
+  cx.fillStyle = "#3b2a1e"; cx.beginPath(); cx.arc(0, -.93 * u, .1 * u, Math.PI, 0); cx.fill();
+  /* arms: ready = out to the sides; diving = stretched above the head; middle = hands at the chest */
+  let hand;
+  if(d && k > .1) hand = [[-.05, -1.12], [.05, -1.12]];
+  else if(!d && A && A.state !== "ready" && k > .1) hand = [[-.12, -.66], [.12, -.66]];
+  else hand = [[-.36, -.52], [.36, -.52]];
+  cx.strokeStyle = "#d83a3a"; cx.lineWidth = Math.max(3, .08 * u); cx.lineCap = "round";
+  [[-.15, -.76], [.15, -.76]].forEach((s, i) => { cx.beginPath(); cx.moveTo(s[0] * u, s[1] * u); cx.lineTo(hand[i][0] * u, hand[i][1] * u); cx.stroke(); });
+  cx.fillStyle = "#ffffff"; hand.forEach(h => { cx.beginPath(); cx.arc(h[0] * u, h[1] * u, .065 * u, 0, 7); cx.fill(); cx.strokeStyle = "rgba(0,0,0,.25)"; cx.lineWidth = 1; cx.stroke(); });
+  cx.restore();
+}
+function ballPos(g, t){
+  const s = [g.gx, g.spotY];
+  if(!A || A.state === "ready") return {x:s[0], y:s[1], r:g.br, sy:s[1] + g.br * .6};
+  const e = gp(g, A.end.u, A.end.v), lift = A.end.v > 1 ? g.gh * .5 : g.gh * .3;
+  if(A.state === "fly"){ const u = clamp01((t - A.tk) / A.flyDur), q = 1 - Math.pow(1 - u, 1.6);
+    return {x:s[0] + (e[0] - s[0]) * q, y:s[1] + (e[1] - s[1]) * q - Math.sin(Math.PI * u) * lift, r:g.br * (1 - .55 * q), sy:s[1] + g.br * .6 + (g.GL - s[1] - g.br * .6) * q}; }
+  /* after landing: a saved ball drops in front of the keeper, a goal drops into the net */
+  const w = easeOut(clamp01((t - A.tRes) / 450)), r = g.br * .45;
+  if(A.res === "s"){ const fx = e[0] + A.dive * g.gw * .06 * w; return {x:fx, y:e[1] + (g.GL + g.gh * .25 - e[1]) * w, r:g.br * (.45 + .2 * w), sy:g.GL + g.gh * .25 + r}; }
+  if(A.res === "g") return {x:e[0], y:e[1] + (g.GL - r - e[1]) * w * .9, r, sy:g.GL};
+  return {x:e[0], y:e[1], r, sy:null};
+}
+function drawBall(g, t){
+  if(!G || G.phase !== "kick") return;
+  const b = ballPos(g, t);
+  if(b.sy !== null){ cx.fillStyle = "rgba(0,0,0,.25)"; cx.beginPath(); cx.ellipse(b.x, b.sy, b.r * 1.05, b.r * .35, 0, 0, 7); cx.fill(); }
+  const gr = cx.createRadialGradient(b.x - b.r * .35, b.y - b.r * .35, b.r * .1, b.x, b.y, b.r); gr.addColorStop(0, "#ffffff"); gr.addColorStop(1, "#d5dbe1");
+  cx.fillStyle = gr; cx.beginPath(); cx.arc(b.x, b.y, b.r, 0, 7); cx.fill();
+  cx.fillStyle = "#1d2b38"; cx.beginPath(); for(let i = 0; i < 5; i++){ const a = -Math.PI / 2 + i * Math.PI * 2 / 5; cx[i ? "lineTo" : "moveTo"](b.x + Math.cos(a) * b.r * .38, b.y + Math.sin(a) * b.r * .38); } cx.closePath(); cx.fill();
+  cx.strokeStyle = "rgba(0,0,0,.3)"; cx.lineWidth = 1; cx.beginPath(); cx.arc(b.x, b.y, b.r, 0, 7); cx.stroke();
+}
+/* The kick bar: tap when the marker is in the green. Yellow = weaker shot. Outside = miss. */
+function drawBar(g, t){
+  if(!A) return;
+  const {bx, by, bw, bh} = g, gz = A.green, X = p => bx + p * bw;
+  const moving = A.state === "ready", pos = moving ? markerAt(t) : A.stop, z = zoneOf(pos, gz);
+  const inGreen = moving && t >= A.t0 && z === "green";
+  cx.save();
+  cx.fillStyle = "rgba(6,22,40,.55)"; rr(bx - 6, by - 6, bw + 12, bh + 12, 14); cx.fill();
+  cx.fillStyle = "#e46a5a"; rr(bx, by, bw, bh, 9); cx.fill();
+  cx.fillStyle = "#f3d36b"; cx.fillRect(X(.5 - gz - YEL), by, X(.5 + gz + YEL) - X(.5 - gz - YEL), bh);
+  cx.fillStyle = inGreen ? "#5fe08a" : "#2e9e4f"; cx.fillRect(X(.5 - gz), by, X(.5 + gz) - X(.5 - gz), bh);
+  cx.strokeStyle = inGreen ? "#ffffff" : "rgba(255,255,255,.75)"; cx.lineWidth = inGreen ? 3 : 1.5; cx.strokeRect(X(.5 - gz), by, X(.5 + gz) - X(.5 - gz), bh);
+  cx.font = "800 12px Montserrat, sans-serif"; cx.textAlign = "center"; cx.textBaseline = "middle";
+  cx.fillStyle = "#fff"; cx.fillText("KICK", X(.5), by + bh / 2);
+  cx.fillStyle = "rgba(255,255,255,.95)"; cx.font = "700 10px Poppins, sans-serif"; cx.textAlign = "left"; cx.fillText("TOO SOFT", bx + 6, by + bh / 2); cx.textAlign = "right"; cx.fillText("TOO HARD", bx + bw - 6, by + bh / 2);
+  /* marker */
+  const mx = X(pos);
+  cx.fillStyle = "#ffffff"; cx.strokeStyle = "#0b2d4f"; cx.lineWidth = 2;
+  rr(mx - 4, by - 8, 8, bh + 16, 4); cx.fill(); cx.stroke();
+  cx.beginPath(); cx.moveTo(mx - 8, by - 16); cx.lineTo(mx + 8, by - 16); cx.lineTo(mx, by - 7); cx.closePath(); cx.fill(); cx.stroke();
+  if(moving) label(t < A.t0 ? "Get ready..." : "Tap anywhere when the marker is in the green", W / 2, by - 30, Math.min(15, W * .038), "#ffffff");
+  else { const txt = {green:"Perfect power", yellow:"A bit weak", soft:"Too soft", hard:"Too hard"}[z], col = {green:"#7ee08f", yellow:"#f3d36b", soft:"#ff8a7a", hard:"#ff8a7a"}[z];
+    label("Stopped here: " + txt, Math.max(90, Math.min(W - 90, mx)), by - 30, 14, col); }
+  cx.restore();
+}
+function label(text, x, y, size, col){
+  cx.save(); cx.font = `800 ${size}px Montserrat, sans-serif`; cx.textAlign = "center"; cx.textBaseline = "middle";
+  const w = cx.measureText(text).width + 18; cx.fillStyle = "rgba(6,22,40,.7)"; rr(x - w / 2, y - size * .85, w, size * 1.7, size * .85); cx.fill();
+  cx.fillStyle = col; cx.fillText(text, x, y + .5); cx.restore();
+}
+function drawOverlay(g, t){
+  if(!G || G.phase !== "kick" || !P()) return;
+  const i = CI(), txt = G.stage === "main" ? "Kick " + Math.min(G.kicks, turnTaken() + (A && A.state === "result" ? 0 : 1)) + " of " + G.kicks : "Sudden death";
+  box(12, 12, txt, G.stage === "main" ? P().name : "Round " + G.round, "left");
+  box(W - 12, 12, goals(i) + (goals(i) === 1 ? " goal" : " goals"), P().name, "right");
+  if(A && A.state === "result"){
+    const u = Math.min(1, (t - A.tRes) / 220), big = A.res === "g" ? "GOAL!" : A.res === "s" ? "SAVED!" : "MISSED";
+    const col = A.res === "g" ? "#7ee08f" : A.res === "s" ? "#f7a61b" : "#ff8a7a";
+    cx.save(); cx.globalAlpha = u; cx.fillStyle = "rgba(6,22,40,.6)"; cx.fillRect(0, H * .40, W, H * .22); cx.restore();
+    banner(big, H * .48, Math.min(W * .16, H * .1) * (.7 + .3 * easeOut(u)), col, u);
+    banner(A.reason, H * .57, Math.max(14, Math.min(20, W * .042)), "#ffffff", u);
+  }
+  if(A && A.tap && t - A.tap.t < 500){ const u = (t - A.tap.t) / 500; cx.strokeStyle = `rgba(255,255,255,${1 - u})`; cx.lineWidth = 4; cx.beginPath(); cx.arc(A.tap.x, A.tap.y, 18 + u * 40, 0, 7); cx.stroke(); }
+}
+function box(x, y, big, small, side){
+  cx.save(); cx.font = "800 16px Montserrat, sans-serif"; const w = Math.max(cx.measureText(big).width, 50) + 24, x0 = side === "left" ? x : x - w;
+  cx.fillStyle = "rgba(11,40,70,.75)"; rr(x0, y, w, 42, 12); cx.fill();
+  cx.fillStyle = "#fff"; cx.textAlign = "left"; cx.textBaseline = "alphabetic"; cx.fillText(big, x0 + 12, y + 21);
+  cx.font = "500 11px Poppins, sans-serif"; cx.fillStyle = "#cfe6f5"; cx.fillText(String(small).slice(0, 14), x0 + 12, y + 35); cx.restore();
+}
+function banner(text, y, size, col, alpha){
+  cx.save(); cx.globalAlpha = alpha === undefined ? 1 : alpha; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.font = `800 ${size}px Montserrat, sans-serif`;
+  cx.lineWidth = Math.max(3, size * .12); cx.strokeStyle = "rgba(6,22,40,.65)"; cx.strokeText(text, W / 2, y); cx.fillStyle = col; cx.fillText(text, W / 2, y); cx.restore();
+}
+function rr(x, y, w, h, r){ cx.beginPath(); cx.moveTo(x + r, y); cx.arcTo(x + w, y, x + w, y + h, r); cx.arcTo(x + w, y + h, x, y + h, r); cx.arcTo(x, y + h, x, y, r); cx.arcTo(x, y, x + w, y, r); cx.closePath(); }
+
+/* ---------- Screens ---------- */
+const RULES = `<div class="card"><h3>How to play</h3>
+  <ul class="sub" style="margin:0;padding-left:1.1em;color:var(--ink)">
+    <li>Pick where to shoot with <b>Left</b>, <b>Middle</b> or <b>Right</b>. It stays picked until you change it.</li>
+    <li>A marker slides along the bar. <b>Tap anywhere on the pitch when it is in the green.</b> One tap kicks the ball.</li>
+    <li>Green = a strong, accurate shot. Yellow = a weaker shot, easier to save. Red = you miss (wide or over the bar).</li>
+    <li>The keeper guesses a side. If he dives the wrong way, it is a goal. A good corner shot can still beat him.</li>
+    <li>Most goals wins. If players are level, it goes to sudden death: one kick each until one player scores and the others do not.</li>
+  </ul></div>`;
+function setupScreen(){
+  if(!setupPlayers){ setupPlayers = rallyPlayers().map((p, i) => ({...p, on:i < 4, level:(opts.lv && opts.lv[p.name]) || (/kippi/i.test(p.name) ? "easy" : "medium")})); }
+  const n = setupPlayers.filter(p => p.on).length;
+  return `<div class="setup"><h2>Penalty Shootout</h2><p class="sub">Everyone shoots penalties against the computer keeper. Pass the phone or tablet after each turn.</p>
+    <div class="card"><h3>Who's shooting?</h3>${setupPlayers.map((p, i) => `<div class="prow"><label class="pl"><input type="checkbox" class="pon" data-i="${i}" ${p.on ? "checked" : ""}><span>${esc(p.name)}</span></label>
+      <div class="seg" role="group" aria-label="${esc(p.name)} level">${Object.entries(LEVELS).map(([k, v]) => `<button class="${p.level === k ? "on" : ""}" data-a="lvl" data-i="${i}" data-l="${k}">${v.name}</button>`).join("")}</div></div>`).join("")}</div>
+    <div class="card"><div class="prow"><h3>Kicks each</h3><div class="seg">${[3, 5].map(o => `<button class="${opts.kicks === o ? "on" : ""}" data-a="kicks" data-v="${o}">${o}</button>`).join("")}</div></div>
+      <p class="sub">Easy has a bigger green zone and a slower keeper.</p></div>
+    <button class="btn go" data-a="start" ${n >= 1 ? "" : "disabled"}>Start: ${n} ${n === 1 ? "player" : "players"}</button>
+    ${n === 1 ? `<p class="sub">One player is practice: no scoreboard points. Tick 2 or more for a match.</p>` : ""}
+    ${G && G.phase !== "over" ? `<button class="btn" data-a="resume">Back to the current match</button>` : ""}
+    ${RULES}<p class="ivy">Made with AI by Ivy Professional School. <a href="https://ivyproschool.com/" target="_blank" rel="noopener">ivyproschool.com</a></p></div>`;
+}
+function leader(){ /* best player who has finished the main round, not counting the current one */
+  if(G.stage !== "main") return null; let b = null; G.queue.slice(0, G.qi).forEach(i => { if(b === null || goals(i) > goals(b)) b = i; }); return b; }
+function coverScreen(){ const p = P(), top = leader();
+  const info = G.stage === "sd" ? `<b>Sudden death, round ${G.round}</b><br>${esc(G.note)}` : `${G.kicks} kicks · ${LEVELS[p.level].name}${top !== null ? `<br>Target to beat: ${goals(top)} (${esc(G.players[top].name)})` : ""}`;
+  return `<div class="cover"><p style="margin:0;font-size:1.1rem;opacity:.9">Pass to</p><h2>${esc(p.name)}</h2>
+    <p style="margin:0;font-size:1.05rem;max-width:30em">${info}</p>
+    <button class="btn" style="background:#fff;color:#0b2d4f;font-size:1.25rem;min-height:68px;padding-inline:30px" data-a="shoot">I'm ${esc(p.name)}. Start shooting</button></div>`; }
+const dot = r => `<span class="bl ${r}">${r === "g" ? "G" : r === "s" ? "S" : "M"}</span>`;
+function panelHTML(){
+  const p = P(), i = CI(), top = leader();
+  const list = G.stage === "main" ? G.res[i] : G.sd[i].slice(G.round - 1);
+  const total = turnTotal();
+  let target = "";
+  if(G.stage === "sd") target = `<div class="card target"><b>Sudden death, round ${G.round}</b><span class="sub">Score to stay in. ${G.queue.slice(0, G.qi).map(j => esc(G.players[j].name) + (G.sd[j][G.round - 1] === "g" ? " scored" : " did not score")).join(", ")}</span></div>`;
+  else if(top !== null){ const need = goals(top) + 1 - goals(i), left = G.kicks - G.res[i].length;
+    target = `<div class="card target"><b>Target to beat: ${goals(top)} goals</b><span class="sub">${esc(G.players[top].name)} has the most so far. ${need <= 0 ? "You are in the lead!" : need > left ? "You can still draw level or set a good score." : `Score ${need} more to take the lead.`}</span></div>`; }
+  return `<div class="card turn"><div class="scoreline"><div><h2>${esc(p.name)}</h2><p>${LEVELS[p.level].name} · ${G.stage === "main" ? "Kick " + Math.min(total, list.length + (A && A.state === "result" ? 0 : 1)) + " of " + total : "Sudden death"}</p></div>
+      <div class="big">${goals(i)}<small>${goals(i) === 1 ? "goal" : "goals"}</small></div></div></div>
+    ${target}
+    <div class="card"><h3>${G.stage === "main" ? "Your kicks" : "This round"}</h3><div class="balls">${list.map(dot).join("")}${Array.from({length:Math.max(0, total - list.length)}, () => `<span class="bl e"></span>`).join("")}</div>
+      <p class="legend">G = goal, S = saved, M = missed</p>
+      <p class="sub" id="last">${A && A.state === "result" && G.last ? `<b>${esc(G.last)}</b>` : "Pick Left, Middle or Right, then tap the pitch when the marker is in the green."}</p></div>
+    ${G.players.length > 1 ? `<div class="card"><h3>Goals so far</h3>${G.players.map((q, j) => `<div class="srow"><span>${j === i ? `<u>${esc(q.name)}</u>` : esc(q.name)}</span><b>${G.res[j].length || G.sd[j].length ? goals(j) : "-"}</b></div>`).join("")}</div>` : ""}`;
+}
+function turnEndScreen(){ const p = P(), i = CI(), lastInQueue = G.qi + 1 >= G.queue.length, next = lastInQueue ? null : G.players[G.queue[G.qi + 1]];
+  const list = G.stage === "main" ? G.res[i] : G.sd[i].slice(G.round - 1);
+  const head = G.stage === "main" ? `${esc(p.name)}: ${goals(i)} ${goals(i) === 1 ? "goal" : "goals"}` : `${esc(p.name)} ${G.sd[i][G.round - 1] === "g" ? "scored" : "did not score"}`;
+  return `<div class="setup"><div class="card turn"><h2>${head}</h2><p>${G.stage === "main" ? "from " + G.kicks + " kicks" : "Sudden death, round " + G.round}</p></div>
+    <div class="card"><div class="balls">${list.map(dot).join("")}</div><p class="legend">G = goal, S = saved, M = missed</p></div>
+    <button class="btn go" data-a="next">${next ? "Next shooter: " + esc(next.name) : "See the result"}</button></div>`; }
+function overScreen(){
+  if(!G.sent && !G.tried && G.players.length > 1){ G.tried = true; if(sendToRally()){ G.sent = true; } save(); }
+  const r = ranking(), sdUsed = G.stage === "sd";
+  return `<div class="setup"><div class="card turn"><h2>${G.players.length > 1 ? esc(G.players[r[0]].name) + " wins!" : "Practice over"}</h2><p>${G.kicks} kicks each${sdUsed ? ", decided in sudden death" : ""}</p></div>
+    <div class="card"><h3>Final goals</h3>${r.map((i, k) => `<div class="srow"><span>${G.players.length > 1 ? k + 1 + ". " : ""}${esc(G.players[i].name)}</span><b>${goals(i)}${G.sd[i].length ? ` <small class="sub">(${cnt(G.sd[i], "g")} in sudden death)</small>` : ""}</b></div>`).join("")}</div>
+    ${G.sent ? `<div class="card target"><b>Added to the scoreboard</b><span class="sub">${esc((G.got || []).join(", "))}</span></div>` : G.players.length > 1 ? `<button class="btn amber" data-a="rally">Add points to the scoreboard (25 for 1st, 10 for 2nd)</button>` : ""}
+    <button class="btn go" data-a="again">Play again with the same players</button><button class="btn" data-a="menu">Change players</button></div>`;
+}
+function render(){
+  $("#talkBtn").textContent = talk ? "Voice on" : "Voice off";
+  const app = $("#app");
+  if(menuOpen || !G){ app.innerHTML = setupScreen(); stopLoop(); }
+  else if(G.phase === "cover"){ app.innerHTML = coverScreen(); stopLoop(); }
+  else if(G.phase === "turnEnd"){ app.innerHTML = turnEndScreen(); stopLoop(); }
+  else if(G.phase === "over"){ app.innerHTML = overScreen(); stopLoop(); }
+  else { if(!$("#pitch")) app.innerHTML = `<main class="play"><div class="stage" id="stage"><canvas id="pitch" aria-label="Penalty view of the goal. Tap to kick."></canvas><div class="aimbar" role="group" aria-label="Shot direction">${[["-1","◀ Left"],["0","▲ Middle"],["1","Right ▶"]].map(([v, l]) => `<button data-aim="${v}" class="${String(aimSel) === v ? "on" : ""}">${l}</button>`).join("")}</div></div><div class="panel" id="panel"></div></main>${rulesOpen ? `<div class="rulesbox">${RULES}<button class="btn" data-a="rules">Close the rules</button></div>` : ""}`;
+    else { const rb = $(".rulesbox"); if(rulesOpen && !rb) app.insertAdjacentHTML("beforeend", `<div class="rulesbox">${RULES}<button class="btn" data-a="rules">Close the rules</button></div>`); if(!rulesOpen && rb) rb.remove(); }
+    renderPanel(); startLoop(); }
+  if(!$("#pitch")){ const rb = $(".rulesbox"); if(rulesOpen && !rb) app.insertAdjacentHTML("beforeend", `<div class="rulesbox">${RULES}<button class="btn" data-a="rules">Close the rules</button></div>`); }
+  save();
+}
+function renderPanel(){ const p = $("#panel"); if(p && G && G.phase === "kick") p.innerHTML = panelHTML(); }
+function startLoop(){ if(!raf) loop(); }
+function stopLoop(){ if(raf){ cancelAnimationFrame(raf); raf = 0; } }
+let toastT; function toast(t){ const el = $("#toast"); el.textContent = t; el.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove("show"), 1700); }
+
+/* ---------- Input ---------- */
+if(typeof document !== "undefined" && document.addEventListener){
+/* Direction buttons pick where to shoot; a tap anywhere else on the pitch kicks */
+function setAim(v){ aimSel = v; opts.aim = v; document.querySelectorAll(".aimbar button").forEach(b => b.classList.toggle("on", +b.dataset.aim === v)); save(); }
+document.addEventListener("pointerdown", e => { const st = e.target.closest && e.target.closest("#stage"); if(!st) return; e.preventDefault(); audio();
+  const ab = e.target.closest("[data-aim]"); if(ab){ setAim(+ab.dataset.aim); return; }
+  if(A && A.state === "ready" && now() >= A.t0){ const r = st.getBoundingClientRect(); A.tap = {x:e.clientX - r.left, y:e.clientY - r.top, t:now()}; }
+  kick(); }, {passive:false});
+document.addEventListener("keydown", e => { if(!G || G.phase !== "kick" || menuOpen) return;
+  const a = {ArrowLeft:-1, ArrowRight:1, ArrowUp:0}[e.code]; if(a !== undefined){ e.preventDefault(); setAim(a); return; }
+  if(e.code === "Space" || e.key === "Enter"){ e.preventDefault(); kick(); } });
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-a]"); if(!b || b.disabled) return;
+  switch(b.dataset.a){
+    case "rules": rulesOpen = !rulesOpen; break;
+    case "talk": talk = !talk; if(!talk && TTS) speechSynthesis.cancel(); break;
+    case "menu": menuOpen = true; setupPlayers = null; A = null; break;
+    case "resume": menuOpen = false; if(G.phase === "kick"){ A = null; render(); startKick(800); return; } break;
+    case "lvl": setupPlayers[+b.dataset.i].level = b.dataset.l; opts.lv = opts.lv || {}; opts.lv[setupPlayers[+b.dataset.i].name] = b.dataset.l; break;
+    case "kicks": opts.kicks = +b.dataset.v; break;
+    case "start": { const ps = setupPlayers.filter(p => p.on); if(!ps.length) break; audio(); newGame(ps); menuOpen = false; A = null; break; }
+    case "again": { const ps = G.players.map(p => ({...p})); newGame(ps); A = null; break; }
+    case "shoot": audio(); G.phase = "kick"; A = null; render(); say(P().name + " to shoot. Tap when the marker is in the green."); startKick(1000); return;
+    case "next": advance(); if(G.phase === "over" && G.players.length > 1){ const r = ranking(); say(G.players[r[0]].name + " wins with " + goals(r[0]) + (goals(r[0]) === 1 ? " goal!" : " goals!")); } break;
+    case "rally": if(sendToRally()){ G.sent = true; toast("Points added to the scoreboard"); } else toast("Open the games home screen once on this device first"); break;
+    default: return;
+  }
+  render();
+});
+document.addEventListener("change", e => { const t = e.target; if(t.classList.contains("pon")){ setupPlayers[+t.dataset.i].on = t.checked; render(); } });
+window.addEventListener("resize", () => { if(raf) draw(); });
+document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible" && G && G.phase === "kick" && !menuOpen && A && A.state === "ready") A.t0 = now() + 600; });
+load(); if(!G) menuOpen = true;
+render(); if(G && G.phase === "kick" && !menuOpen) startKick(1000);
+if("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+}
+</script>
+</body>
+</html>

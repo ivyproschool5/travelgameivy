@@ -380,6 +380,8 @@ function draw(){
   if(!fit()) return;
   const g = geo(), t = now();
   drawScene(g);
+  drawKeeper(g, t);
+  drawGoalFrame(g);
   /* aim ring in the goal before the kick */
   if(A && A.state === "ready"){
     const [ax, ay] = gp(g, aimSel * .72, aimSel ? .55 : .6), r = g.gw * .075;
@@ -387,8 +389,6 @@ function draw(){
     cx.beginPath(); cx.arc(ax, ay, r, 0, 7); cx.fill(); cx.stroke(); cx.setLineDash([]);
     label("AIM", ax, ay - r - 9, 12, "#f7a61b"); cx.restore();
   }
-  drawKeeper(g, t);
-  drawGoalFrame(g);
   drawBall(g, t);
   drawBar(g, t);
   drawOverlay(g, t);
