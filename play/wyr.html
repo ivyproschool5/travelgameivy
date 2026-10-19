@@ -389,9 +389,9 @@ grownup: [
 "be known for your honesty|be known for your generosity"
 ]};
 const SETS = {everyone:"Everyone", grownup:"Grown-up twist"};
-const ROUNDS = [6, 10, 15];
+const ROUNDS = [1, 2, 3];
 
-let G = null, menuOpen = false, rulesOpen = false, setupPlayers = null, opts = {rounds:10, set:"everyone"};
+let G = null, menuOpen = false, rulesOpen = false, setupPlayers = null, opts = {turns:2, set:"everyone"};
 let talk = true, used = [];
 
 /* ---------- Voice and saving ---------- */
@@ -425,7 +425,7 @@ function drawQuestion(){
   used.push(id); G.q = {id, a, b}; G.guess = {}; G.phase = "guess"; return wrap;
 }
 function newGame(players){
-  G = {v:1, players:players.map(p => ({id:p.id, name:p.name})), rounds:opts.rounds, set:opts.set, round:0,
+  G = {v:1, players:players.map(p => ({id:p.id, name:p.name})), rounds:players.length * (opts.turns || 2), turns:opts.turns || 2, set:opts.set, round:0,
     score:players.map(() => 0), right:players.map(() => 0), q:null, guess:{}, last:null, phase:"guess", sent:false, tried:false};
   drawQuestion();
 }
@@ -470,7 +470,7 @@ function setupScreen(){
   const n = setupPlayers.filter(p => p.on).length;
   return `<div class="setup"><h2>Would You Rather</h2><p class="sub">The front passenger holds the phone and taps for everyone. Guess what the hot-seat player will choose.</p>
     <div class="card"><h3>Who's playing? (2 to 6)</h3>${setupPlayers.map((p, i) => `<label class="pl"><input type="checkbox" class="pon" data-i="${i}" ${p.on ? "checked" : ""} ${!p.on && n >= 6 ? "disabled" : ""}><span>${esc(p.name)}</span></label>`).join("")}</div>
-    <div class="card"><div class="prow"><h3>Rounds</h3><div class="seg">${ROUNDS.map(o => `<button class="${opts.rounds === o ? "on" : ""}" data-a="rnd" data-v="${o}">${o}</button>`).join("")}</div></div>
+    <div class="card"><div class="prow"><h3>Hot seat turns each</h3><div class="seg">${ROUNDS.map(o => `<button class="${(opts.turns || 2) === o ? "on" : ""}" data-a="rnd" data-v="${o}">${o}</button>`).join("")}</div></div>
       <div class="prow"><h3>Questions</h3><div class="seg">${Object.entries(SETS).map(([k, v]) => `<button class="${opts.set === k ? "on" : ""}" data-a="set" data-v="${k}">${v}</button>`).join("")}</div></div>
       <p class="sub">${opts.set === "everyone" ? "Fun questions for all ages." : "Still family-safe, a little more to think about."}</p></div>
     <button class="btn go big" data-a="start" ${n >= 2 && n <= 6 ? "" : "disabled"}>${n >= 2 ? `Start: ${n} players` : "Tick at least 2 players"}</button>
@@ -551,10 +551,10 @@ document.addEventListener("click", e => {
     case "talk": talk = !talk; if(!talk && TTS) speechSynthesis.cancel(); break;
     case "menu": menuOpen = true; setupPlayers = null; rulesOpen = false; top = true; break;
     case "resume": menuOpen = false; top = true; break;
-    case "rnd": opts.rounds = +b.dataset.v; break;
+    case "rnd": opts.turns = +b.dataset.v; break;
     case "set": opts.set = b.dataset.v; break;
     case "start": { const ps = setupPlayers.filter(p => p.on); if(ps.length < 2) break; newGame(ps); menuOpen = false; top = true; readQuestion(); break; }
-    case "again": { const ps = G.players.map(p => ({...p})); opts.rounds = G.rounds; opts.set = G.set; newGame(ps); top = true; readQuestion(); break; }
+    case "again": { const ps = G.players.map(p => ({...p})); opts.turns = G.turns || 2; opts.set = G.set; newGame(ps); top = true; readQuestion(); break; }
     case "read": readQuestion(); return;
     case "guess": G.guess[+b.dataset.i] = b.dataset.v; break;
     case "skip": if(!drawQuestion()) toast("New question"); readQuestion(); break;
