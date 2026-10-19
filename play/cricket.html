@@ -76,6 +76,9 @@ main.play{grid-template-columns:minmax(0,1fr) 330px}
 .stage{position:relative;width:100%;height:calc(100vh - 100px);height:calc(100dvh - 100px);min-height:380px;border-radius:20px;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;cursor:pointer;
   box-shadow:0 18px 34px -16px rgba(13,42,64,.45);background:#3f9b4a}
 #pitch{display:block;width:100%;height:100%}
+.aimbar{position:absolute;left:10px;right:10px;bottom:10px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;z-index:2}
+.aimbar button{min-height:50px;border-radius:14px;border:1.5px solid rgba(255,255,255,.35);background:rgba(6,22,40,.6);color:#fff;font-weight:700;font-size:.92rem;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);touch-action:manipulation}
+.aimbar button.on{background:#fff;color:#0b5394;border-color:#f7a61b;box-shadow:0 0 0 3px rgba(247,166,27,.55)}
 .taphint{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);background:rgba(6,22,40,.55);color:#fff;font-weight:600;font-size:.82rem;padding:5px 12px;border-radius:999px;pointer-events:none;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);white-space:nowrap}
 @media (max-width: 860px){ .stage{height:auto;aspect-ratio:3/4;max-height:68vh;min-height:0} }
 @media (max-width: 860px) and (min-width: 600px){ .stage{aspect-ratio:4/3;max-height:62vh} }
@@ -198,7 +201,10 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const PUBLIC = typeof location !== "undefined" && /\/play\//.test(location.pathname);
 const RALLY_KEY = PUBLIC ? "ivy-rr-v1" : "himachal-rally-v1", KEY = PUBLIC ? "ivy-cricket-v1" : "family-cricket-v1";
-const LEVELS = {easy:{name:"Easy", time:1.45, win:1.6}, medium:{name:"Medium", time:1, win:1}, hard:{name:"Hard", time:.8, win:.72}};
+const LEVELS = {easy:{name:"Easy", time:1.45, win:1.85}, medium:{name:"Medium", time:1.05, win:1.25}, hard:{name:"Hard", time:.82, win:.85}};
+/* Three shot directions picked with the buttons on the pitch */
+const AIMS = {"-1":-58, "0":0, "1":58};
+let aimSel = 0;
 /* Timing windows in seconds around the perfect moment (scaled by level) */
 const WIN = {perfect:.045, good:.09, ok:.14, edge:.19};
 /* Fielders: X metres to the off side (right), Z metres towards the bowler, batter at 0,0 */
@@ -240,7 +246,7 @@ const sfx = {
   groan(){ noise(1, 400, .7, .12, .2); }
 };
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify({G, talk, best, opts})); }catch(e){} }
-function load(){ try{ const d = JSON.parse(localStorage.getItem(KEY)); if(d){ talk = d.talk !== false; best = d.best || {}; if(d.opts) opts = d.opts; if(d.G && d.G.v === 1) G = d.G; } }catch(e){} }
+function load(){ try{ const d = JSON.parse(localStorage.getItem(KEY)); if(d){ talk = d.talk !== false; best = d.best || {}; if(d.opts){ opts = d.opts; if(opts.aim !== undefined) aimSel = opts.aim; } if(d.G && d.G.v === 1) G = d.G; } }catch(e){} }
 function rallyPlayers(){
   try{ const d = JSON.parse(localStorage.getItem(RALLY_KEY)); if(d && d.players && d.players.length) return d.players.map(p => ({id:p.id, name:p.name})); }catch(e){}
   if(!PUBLIC) return [["mom","Mom"],["dad","Dad"],["kippi","Kippi"],["zubbu","Zubbu"]].map(([id, name]) => ({id, name}));
@@ -292,16 +298,18 @@ function ballAt(b, t){
 }
 const perfectT = b => (REL.z - CONTACT) / (REL.z / b.T);
 
+const winK = b => (LEVELS[P().level] || LEVELS.medium).win * (b.length === "yorker" ? .8 : b.hb > 1.5 ? .85 : 1);
 function shotFor(b, e, aim){
-  const lv = LEVELS[P().level] || LEVELS.medium, k = lv.win * (b.length === "yorker" ? .8 : b.hb > 1.5 ? .85 : 1), a = Math.abs(e);
+  const k = winK(b), a = Math.abs(e);
   if(a > WIN.edge * k) return null;
   const q = a <= WIN.perfect * k ? "perfect" : a <= WIN.good * k ? "good" : a <= WIN.ok * k ? "ok" : "edge";
   const timing = q === "perfect" ? "Perfect timing" : (e < 0 ? (q === "good" ? "A touch early" : "Early") : (q === "good" ? "A touch late" : "Late"));
   /* where you tapped sets the direction; timing nudges it (early drifts to leg, late to off) */
-  let ang = Math.max(-120, Math.min(120, aim + Math.max(-1, Math.min(1, e / (WIN.ok * k))) * 18 + rnd(-7, 7)));
+  /* the ball goes where you chose, with a little natural spread */
+  let ang = aim + rnd(-9, 9);
   const g = gapAt(ang), spot = g >= 17 ? "gap" : g <= 8 ? "fielder" : "normal";
   const T = {
-    perfect:{gap:[[6, 55], [4, 45]], normal:[[6, 50], [4, 42], [1, 8]], fielder:[[6, 40], [4, 30], [1, 18], ["c", 12]]},
+    perfect:{gap:[[6, 55], [4, 45]], normal:[[6, 50], [4, 42], [1, 8]], fielder:[[6, 45], [4, 35], [1, 20]]},
     good:{gap:[[4, 55], [6, 15], [2, 20], [1, 10]], normal:[[4, 40], [6, 10], [2, 22], [1, 22], ["c", 6]], fielder:[[0, 30], [1, 30], ["c", 16], [4, 14], [2, 10]]},
     ok:{gap:[[2, 30], [1, 30], [4, 20], [0, 15], ["c", 5]], normal:[[1, 38], [2, 18], [0, 22], [4, 10], ["c", 12]], fielder:[[0, 45], [1, 28], ["c", 22], [4, 5]]}
   };
@@ -353,8 +361,8 @@ function planShot(){
 }
 /* Name of the area of the ground for an angle (0 = straight, negative = leg side) */
 function zoneName(a){ const x = Math.abs(a), leg = a < 0;
-  if(x <= 18) return "straight down the ground"; if(x <= 55) return leg ? "mid-wicket" : "cover";
-  if(x <= 105) return leg ? "square leg" : "point"; if(x <= 150) return leg ? "fine leg" : "third man"; return "behind the wicket"; }
+  if(x <= 18) return "straight down the ground"; if(x <= 70) return leg ? "mid-wicket" : "cover";
+  if(x <= 115) return leg ? "square leg" : "point"; if(x <= 150) return leg ? "fine leg" : "third man"; return "behind the wicket"; }
 const aimName = a => Math.abs(a) < 1 ? "straight" : a < 0 ? "to leg" : "to off";
 const wentTo = a => Math.abs(a) <= 18 ? "it went straight down the ground" : Math.abs(a) > 150 ? "it went behind the wicket" : "it went to " + zoneName(a);
 function nearestName(ang){ let best = null, m = 1e9; FIELD.forEach((f, i) => { if(i < 2) return; const d = Math.abs(angDiff(fieldAng(f), ang)); if(d < m){ m = d; best = f.n; } }); return best || "the fielder"; }
@@ -395,9 +403,10 @@ function loop(){
   if(A.state === "wait" && t >= A.t0){ A.state = "runup"; A.t0 = t; }
   if(A.state === "runup" && t - A.t0 >= 1150){ A.state = "flight"; A.t0 = t; A.swingAllowed = true; if(A.early){ A.swing = null; A.early = false; } }
   if(A.state === "flight"){
-    const bt = (t - A.t0) / 1000, p = ballAt(A.ball, bt);
-    if(p.z <= 0.05 && A.ball.onStumps && Math.abs(p.x) < .14 && p.y < .8 && !A.shot){ A.state = "out"; A.tOut = t; sfx.stumps(); finishBall("bowled", 0, true, false); }
-    else if(p.z <= -6){ const wide = A.ball.line === "wide" && !A.swing; finishBall(wide ? "wide" : "beaten", 0, false, wide); }
+    /* a miss is only decided once the whole timing bar has passed, so a late tap in the yellow still counts */
+    const bt = (t - A.t0) / 1000, p = ballAt(A.ball, bt), lateEnd = perfectT(A.ball) + WIN.edge * winK(A.ball);
+    if(bt >= lateEnd && A.ball.onStumps && !A.shot){ A.state = "out"; A.tOut = t; sfx.stumps(); finishBall("bowled", 0, true, false); }
+    else if(p.z <= -6 && bt >= lateEnd){ const wide = A.ball.line === "wide" && !A.swing; finishBall(wide ? "wide" : "beaten", 0, false, wide); }
   }
   if(A.state === "hit" && t - A.tHit >= A.flight.dur * 1000 + 250){
     const s = A.shot; finishBall(s.out === "c" ? "caught" : s.out === "cb" ? "cb" : "runs", typeof s.out === "number" ? s.out : 0, s.out === "c" || s.out === "cb", false);
@@ -443,13 +452,12 @@ function drawPitch(){
   [[0, 3.2], [0, 16.5]].forEach(([x, z]) => { const a = pr(x - .6, 0, z - 1.6), b = pr(x + .6, 0, z + 1.6); cx.fillStyle = "rgba(160,130,80,.18)"; cx.beginPath(); cx.ellipse((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, Math.abs(b[0] - a[0]) / 2 + 2, Math.abs(b[1] - a[1]) / 2 + 1, 0, 0, 7); cx.fill(); });
   const line = (x1, z1, x2, z2, w) => { const a = pr(x1, 0, z1), b = pr(x2, 0, z2); cx.strokeStyle = "rgba(255,255,255,.95)"; cx.lineWidth = Math.max(1, w * a[2]); cx.beginPath(); cx.moveTo(a[0], a[1]); cx.lineTo(b[0], b[1]); cx.stroke(); };
   [[1.22, 0], [18.9, 20.12]].forEach(([pop, stump]) => { line(-1.83, pop, 1.83, pop, .05); line(-1.32, stump, 1.32, stump, .04); line(-1.32, Math.min(pop, stump) - 1.2, -1.32, Math.max(pop, stump) + 1.2, .04); line(1.32, Math.min(pop, stump) - 1.2, 1.32, Math.max(pop, stump) + 1.2, .04); });
-  /* sweet spot ring */
-  if(A && P() && P().level !== "hard" && (A.state === "flight" || A.state === "runup")){ const p = pr(A.ball.x * .6, 0, CONTACT), t = (now() / 600) % 1; cx.strokeStyle = `rgba(247,166,27,${.55 - t * .4})`; cx.lineWidth = 3; cx.beginPath(); cx.ellipse(p[0], p[1], p[2] * (.35 + t * .15), p[2] * (.12 + t * .05), 0, 0, 7); cx.stroke(); }
   /* far fielders and bowler */
   FIELD.forEach(f => { if(f.z > 12) figure(f.x, f.z, "#f4f6f8", "#1d2b38", 0); });
   drawStumps(20.12, A && false);
   drawBowler();
-  const b = A && A.state === "flight" ? ballAt(A.ball, (now() - A.t0) / 1000) : A && A.state === "out" ? ballAt(A.ball, perfectT(A.ball) + .12) : null;
+  const tStump = A ? (REL.z - .05) / (REL.z / A.ball.T) : 0, clampT = x => A.ball.onStumps ? Math.min(x, tStump) : x;
+  const b = A && A.state === "flight" ? ballAt(A.ball, clampT((now() - A.t0) / 1000)) : A && (A.state === "out" || (A.state === "result" && A.result && A.result.kind === "bowled")) ? ballAt(A.ball, tStump) : null;
   if(b && b.z > .55) drawBall(b);
   drawBatter();
   if(b && b.z <= .55) drawBall(b);
@@ -572,8 +580,7 @@ function drawOverlay(){
     cx.fillText(A.state === "wait" ? "Bowler at the top" : (A.ball.spin ? "Spin" : "Pace") + " · " + A.ball.length, 24, 46);
   }
   if(A.state === "wait" || A.state === "runup" || A.state === "flight") miniMap();
-  if(A.state === "flight" || A.state === "runup"){ cx.save(); cx.font = "700 12px Montserrat, sans-serif"; cx.textBaseline = "middle"; cx.fillStyle = "rgba(255,255,255,.8)";
-    cx.textAlign = "left"; cx.fillText("‹ LEG SIDE", 14, H * .62); cx.textAlign = "right"; cx.fillText("OFF SIDE ›", W - 14, H * .62); cx.restore(); }
+  if(A.state !== "wait" && !(A.state === "result" && A.result && A.result.wide)) drawMeter();
   if(A.state === "hit" && A.shot){ banner(A.shot.timing + " · aimed " + aimName(A.aim), 0, .17, Math.min(18, W * .045), A.shot.q === "perfect" ? "#f7a61b" : "#ffffff"); }
   /* ripple where the finger landed */
   if(A.tap && t - A.tap.t < 500){ const u = (t - A.tap.t) / 500; cx.strokeStyle = `rgba(255,255,255,${1 - u})`; cx.lineWidth = 4; cx.beginPath(); cx.arc(A.tap.x, A.tap.y, 18 + u * 40, 0, 7); cx.stroke(); }
@@ -586,6 +593,20 @@ function drawOverlay(){
     banner(big, H * .44, 0, Math.min(W * .16, H * .11) * (0.7 + .3 * easeOut(u)), col, u);
     banner(sub, H * .53, 0, Math.max(13, H * .03), "#e8f3fb", u);
   }
+}
+/* Timing meter: the marker moves with the ball; tap when it is in the green */
+function drawMeter(){
+  const b = A.ball, k = winK(b), pt = perfectT(b), t0 = Math.max(0, pt - .6), t1 = pt + WIN.edge * k * 1.6;
+  const x0 = 18, x1 = W - 18, y = H - 86, h = 16, X = t => x0 + (x1 - x0) * Math.max(0, Math.min(1, (t - t0) / (t1 - t0)));
+  cx.save(); cx.fillStyle = "rgba(6,22,40,.6)"; rr(x0 - 6, y - 22, x1 - x0 + 12, h + 30, 12); cx.fill();
+  cx.fillStyle = "rgba(255,255,255,.15)"; rr(x0, y, x1 - x0, h, 8); cx.fill();
+  [[WIN.edge, "rgba(255,107,87,.55)"], [WIN.ok, "#f3d36b"], [WIN.good, "#6fd38a"], [WIN.perfect, "#f7a61b"]].forEach(([w, c]) => {
+    const a = X(pt - w * k), z = X(pt + w * k); cx.fillStyle = c; cx.fillRect(a, y, Math.max(2, z - a), h); });
+  cx.fillStyle = "#fff"; cx.font = "800 10px Montserrat, sans-serif"; cx.textAlign = "center"; cx.textBaseline = "alphabetic"; cx.fillText("HIT", X(pt), y - 6);
+  cx.textAlign = "left"; cx.fillStyle = "rgba(255,255,255,.75)"; cx.fillText("EARLY", x0, y - 6); cx.textAlign = "right"; cx.fillText("LATE", x1, y - 6);
+  const tm = A.state !== "runup" && A.swing && A.t0 && A.swing >= A.t0 ? (A.swing - A.t0) / 1000 : A.state === "flight" ? (now() - A.t0) / 1000 : null;
+  if(tm !== null){ const mx = X(tm); cx.fillStyle = "#fff"; cx.shadowColor = "rgba(0,0,0,.5)"; cx.shadowBlur = 4; rr(mx - 3, y - 5, 6, h + 10, 3); cx.fill(); }
+  cx.restore();
 }
 /* Small field map: fielders, the rope and the gaps */
 function miniMap(){
@@ -606,14 +627,14 @@ function banner(text, y, yf, size, col, alpha){
 
 /* ---------- Screens ---------- */
 const RULES = `<div class="card"><h3>How to play</h3>
-  <p class="sub" style="color:var(--ink)">You bat, the computer bowls. <b>Tap the pitch</b> to swing as the ball reaches you.</p>
+  <p class="sub" style="color:var(--ink)">You bat, the computer bowls. Two simple steps:</p>
   <ul class="sub" style="margin:0;padding-left:1.1em;color:var(--ink)">
-    <li><b>Perfect timing</b> means a 4 or 6 most of the time.</li>
-    <li><b>Where you tap aims the shot:</b> left side of the pitch for the leg side, the middle to hit straight, the right side for the off side. On a keyboard use the arrow keys.</li>
+    <li><b>Pick a direction</b> with the three buttons at the bottom of the pitch: Leg side, Straight or Off side. Your choice stays picked until you change it.</li>
+    <li><b>Tap anywhere on the pitch</b> when the white marker on the timing bar is in the <b>green HIT zone</b>. The gold centre is perfect: mostly 4s and 6s.</li>
+    <li>On a keyboard: arrow keys pick the direction, space bar swings.</li>
     <li>The small <b>field map</b> shows the fielders (red dots). Hit into a <b>gap</b> for more boundaries; hit straight at a fielder and you may be stopped or caught. The field changes every over.</li>
-    <li>Timing nudges the direction too: early drifts towards the leg side, late towards the off side.</li>
+    <li>After each tap the marker stops where you hit, so you can see if you were early or late.</li>
     <li>Miss a ball that is heading for the stumps and you are <b>bowled</b>. Edges and mistimed shots can be <b>caught</b>.</li>
-    <li>The orange ring on the pitch shows where to hit the ball (Easy and Medium).</li>
     <li>Each player bats for the same number of overs. Highest score wins; if the scores are level, fewer wickets lost wins.</li>
   </ul></div>`;
 function setupScreen(){
@@ -644,7 +665,7 @@ function panelHTML(){
       <div class="big">${n.runs}<span>/${n.wk}</span></div></div></div>
     ${need !== null ? `<div class="card target"><b>${need > 0 ? `Needs ${need} from ${left} ${left === 1 ? "ball" : "balls"}` : `In the lead!`}</b><span class="sub">${esc(G.players[top].name)} scored ${G.inn[top].runs}</span></div>` : ""}
     <div class="card"><h3>This over</h3><div class="balls">${thisOver.map(x => `<span class="bl ${x === "W" ? "w" : x === "4" || x === "6" ? "b" : x === "Wd" ? "x" : ""}">${x === "0" ? "•" : x}</span>`).join("")}${Array.from({length:Math.max(0, 6 - legal)}, () => `<span class="bl e"></span>`).join("")}</div>
-      <p class="sub" id="last">${A && A.result ? esc(A.result.line) + (A.result.where ? `<br><b>${esc(A.result.where)}</b>` : "") : "Tap when the ball reaches the orange ring. Tap on the left to hit to the leg side, the middle to hit straight, the right for the off side. Aim for the gaps on the field map."}</p></div>
+      <p class="sub" id="last">${A && A.result ? esc(A.result.line) + (A.result.where ? `<br><b>${esc(A.result.where)}</b>` : "") : "1. Pick a direction with the buttons (it stays picked). 2. Tap the pitch when the white marker is in the green HIT zone. Aim for gaps on the field map."}</p></div>
     <div class="card"><h3>Scorecard</h3><div class="srow"><span>Fours</span><b>${n.fours}</b></div><div class="srow"><span>Sixes</span><b>${n.sixes}</b></div><div class="srow"><span>Strike rate</span><b>${n.balls ? Math.round(n.runs * 100 / n.balls) : 0}</b></div>
       ${G.players.length > 1 ? `<div class="srow"><span>Batting order</span><b>${G.players.map((q, i) => i === G.cur ? `<u>${esc(q.name)}</u>` : G.inn[i].done ? esc(q.name) + " " + G.inn[i].runs : esc(q.name)).join(" · ")}</b></div>` : ""}</div>`;
 }
@@ -667,7 +688,7 @@ function render(){
   else if(G.phase === "cover"){ app.innerHTML = coverScreen(); stopLoop(); }
   else if(G.phase === "innEnd"){ app.innerHTML = innEndScreen(); stopLoop(); }
   else if(G.phase === "over"){ app.innerHTML = overScreen(); stopLoop(); }
-  else { if(!$("#pitch")) app.innerHTML = `<main class="play"><div class="stage" id="stage"><canvas id="pitch" aria-label="Cricket pitch. Tap to swing the bat."></canvas><div class="taphint">Tap left, middle or right to aim your shot</div></div><div class="panel" id="panel"></div></main>${rulesOpen ? `<div class="rulesbox">${RULES}<button class="btn" data-a="rules">Close the rules</button></div>` : ""}`;
+  else { if(!$("#pitch")) app.innerHTML = `<main class="play"><div class="stage" id="stage"><canvas id="pitch" aria-label="Cricket pitch. Tap to swing the bat."></canvas><div class="aimbar" role="group" aria-label="Shot direction">${[["-1","◀ Leg side"],["0","▲ Straight"],["1","Off side ▶"]].map(([v, l]) => `<button data-aim="${v}" class="${String(aimSel) === v ? "on" : ""}">${l}</button>`).join("")}</div></div><div class="panel" id="panel"></div></main>${rulesOpen ? `<div class="rulesbox">${RULES}<button class="btn" data-a="rules">Close the rules</button></div>` : ""}`;
     else { const rb = $(".rulesbox"); if(rulesOpen && !rb) app.insertAdjacentHTML("beforeend", `<div class="rulesbox">${RULES}<button class="btn" data-a="rules">Close the rules</button></div>`); if(!rulesOpen && rb) rb.remove(); }
     renderPanel(); startLoop(); }
   save();
@@ -682,13 +703,14 @@ function endInnings(){ const p = P(), n = I(); const b = best[p.name];
 
 /* ---------- Input ---------- */
 if(typeof document !== "undefined" && document.addEventListener){
-/* Tap position aims the shot: left = leg side, middle = straight, right = off side */
-const aimFromX = (x, w) => { const d = Math.max(-1, Math.min(1, (x - w / 2) / (w * .42))); return Math.abs(d) < .12 ? 0 : d * 100; };
+/* Direction buttons pick where to hit; a tap anywhere else on the pitch swings the bat */
+function setAim(v){ aimSel = v; opts.aim = v; document.querySelectorAll(".aimbar button").forEach(b => b.classList.toggle("on", +b.dataset.aim === v)); save(); }
 document.addEventListener("pointerdown", e => { const st = e.target.closest && e.target.closest("#stage"); if(!st) return; e.preventDefault(); audio();
-  const r = st.getBoundingClientRect(); if(A && A.swing === null) A.tap = {x:e.clientX - r.left, y:e.clientY - r.top, t:now()}; swing(aimFromX(e.clientX - r.left, r.width)); }, {passive:false});
+  const ab = e.target.closest("[data-aim]"); if(ab){ setAim(+ab.dataset.aim); return; }
+  const r = st.getBoundingClientRect(); if(A && A.swing === null) A.tap = {x:e.clientX - r.left, y:e.clientY - r.top, t:now()}; swing(AIMS[aimSel]); }, {passive:false});
 document.addEventListener("keydown", e => { if(!G || G.phase !== "bat" || menuOpen) return;
-  const aim = {ArrowLeft:-75, ArrowRight:75, ArrowUp:0, Space:0, Enter:0}[e.code] ?? {Enter:0}[e.key];
-  if(aim !== undefined){ e.preventDefault(); swing(aim); } });
+  const a = {ArrowLeft:-1, ArrowRight:1, ArrowUp:0}[e.code]; if(a !== undefined){ e.preventDefault(); setAim(a); return; }
+  if(e.code === "Space" || e.key === "Enter"){ e.preventDefault(); swing(AIMS[aimSel]); } });
 document.addEventListener("click", e => {
   const b = e.target.closest("[data-a]"); if(!b || b.disabled) return;
   switch(b.dataset.a){
