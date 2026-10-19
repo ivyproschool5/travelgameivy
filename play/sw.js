@@ -1,7 +1,7 @@
 // Offline support. Pages: try the network first so updates show straight away, fall back to the saved copy
 // when there is no signal (or the network takes more than 4 seconds). Other files: saved copy first, refreshed in the background.
-const CACHE = "ivy-rr-v19";
-const FILES = ["./", "./index.html", "./settlers.html", "./ludo.html", "./cricket.html", "./words.html", "./wyr.html", "./story.html", "./deal.html", "./ivy-logo.png", "./icon-192.png", "./manifest.json"];
+const CACHE = "ivy-rr-v20";
+const FILES = ["./", "./index.html", "./settlers.html", "./ludo.html", "./cricket.html", "./carrom.html", "./words.html", "./wyr.html", "./story.html", "./deal.html", "./ivy-logo.png", "./icon-192.png", "./manifest.json"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
