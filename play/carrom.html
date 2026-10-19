@@ -315,7 +315,7 @@ const sfx = {
   foul(){ tone(220, .35, .25); }
 };
 function save(){ if(G && G.phase === "moving") return; try{ localStorage.setItem(KEY, JSON.stringify({G, talk, opts})); }catch(e){} }
-function load(){ try{ const d = JSON.parse(localStorage.getItem(KEY)); if(d){ talk = d.talk !== false; if(d.opts) opts = d.opts; if(d.G && d.G.v === 1){ G = d.G; if(G.phase === "moving") G.phase = "place"; } } }catch(e){} }
+function load(){ try{ const d = JSON.parse(localStorage.getItem(KEY)); if(d){ talk = d.talk !== false; if(d.opts) opts = d.opts; if(d.G && d.G.v === 1){ G = d.G; if(G.phase === "moving") G.phase = "place"; G.coins.forEach(c => { delete c.anim; }); } } }catch(e){} }
 function rallyPlayers(){
   try{ const d = JSON.parse(localStorage.getItem(RALLY_KEY)); if(d && d.players && d.players.length) return d.players.map(p => ({id:p.id, name:p.name})); }catch(e){}
   if(!PUBLIC) return [["mom","Mom"],["dad","Dad"],["kippi","Kippi"],["zubbu","Zubbu"]].map(([id, name]) => ({id, name}));
@@ -456,7 +456,7 @@ function paintBoard(){
   for(let s = 0; s < 4; s++){ c.save(); c.rotate(s * Math.PI / 2 + Math.PI / 4);
     const a = 15.6, b = 41.3; c.strokeStyle = INK; c.lineWidth = .16; c.beginPath(); c.moveTo(0, a); c.lineTo(0, b); c.stroke();
     c.beginPath(); c.moveTo(-.9, b - 1.5); c.lineTo(0, b); c.lineTo(.9, b - 1.5); c.stroke();
-    c.beginPath(); c.arc(0, a - 3.175, 3.175, Math.PI / 2 + .45, Math.PI / 2 - .45 + Math.PI * 2); c.stroke();
+    circ(c, 0, a - 3.175, 3.175); c.stroke();
     c.restore(); }
   /* centre design: double circle, eight petals, red centre spot */
   circ(c, 0, 0, 8.5); c.strokeStyle = INK; c.lineWidth = .2; c.stroke(); circ(c, 0, 0, 7.9); c.lineWidth = .08; c.stroke();
@@ -492,7 +492,7 @@ function draw(){
   const lx = -.7 * Math.cos(A) + .7 * Math.sin(A), ly = -.7 * Math.sin(A) - .7 * Math.cos(A);
   const placing = G.phase === "place" || G.phase === "aim";
   if(placing && !turning()){ c.save(); c.rotate(side() * Math.PI / 2); const y1 = PHY.HALF - 10.15; c.fillStyle = P().col; c.globalAlpha = G.phase === "place" ? .26 : .14; c.fillRect(-PHY.BASE_X, y1 - 3.18, 2 * PHY.BASE_X, 3.18); c.restore(); }
-  G.coins.forEach(d => { if(!d.in) paintDisc(c, d, lx, ly); else if(d.anim && now - d.anim < 320){ const u = (now - d.anim) / 320; c.globalAlpha = 1 - u; paintDisc(c, {...d, x:d.x + (d.px - d.x) * u, y:d.y + (d.py - d.y) * u}, lx, ly, 1 - u * .5, true); c.globalAlpha = 1; } });
+  G.coins.forEach(d => { if(!d.in) paintDisc(c, d, lx, ly); else if(d.anim && now >= d.anim && now - d.anim < 320){ const u = (now - d.anim) / 320; c.globalAlpha = 1 - u; paintDisc(c, {...d, x:d.x + (d.px - d.x) * u, y:d.y + (d.py - d.y) * u}, lx, ly, 1 - u * .5, true); c.globalAlpha = 1; } });
   if(S){ const s = S.st; if(!s.in) paintDisc(c, s, lx, ly); else if(s.anim && now - s.anim < 320){ c.globalAlpha = 1 - (now - s.anim) / 320; paintDisc(c, s, lx, ly, 1, true); c.globalAlpha = 1; } }
   else if(placing && !turning()){
     const [x, y] = strikerXY(), bad = !strikerFree(), st = {k:"s", x, y, r:PHY.STRIKER_R};
