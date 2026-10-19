@@ -1,6 +1,6 @@
 // Offline support. Pages: try the network first so updates show straight away, fall back to the saved copy
 // when there is no signal (or the network takes more than 4 seconds). Other files: saved copy first, refreshed in the background.
-const CACHE = "road-rally-v20";
+const CACHE = "road-rally-v21";
 const FILES = ["./", "./index.html", "./katan.html", "./ludo.html", "./cricket.html", "./deal.html", "./ivy-logo.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => {

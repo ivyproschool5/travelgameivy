@@ -202,11 +202,18 @@ const LEVELS = {easy:{name:"Easy", time:1.45, win:1.6}, medium:{name:"Medium", t
 /* Timing windows in seconds around the perfect moment (scaled by level) */
 const WIN = {perfect:.045, good:.09, ok:.14, edge:.19};
 /* Fielders: X metres to the off side (right), Z metres towards the bowler, batter at 0,0 */
-const FIELD = [
-  {n:"the keeper", x:0, z:-5}, {n:"slip", x:2.6, z:-6}, {n:"point", x:25, z:3}, {n:"cover", x:21, z:19},
-  {n:"mid-off", x:9, z:33}, {n:"mid-on", x:-9, z:33}, {n:"mid-wicket", x:-23, z:17}, {n:"square leg", x:-26, z:1},
-  {n:"fine leg", x:-28, z:-27}, {n:"deep mid-wicket", x:-44, z:42}
+/* Three field settings; the captain changes the field every over, so look for the gaps */
+const KEEP = [{n:"the keeper", x:0, z:-5}, {n:"slip", x:2.6, z:-6}];
+const FIELDS = [
+  [{n:"point", x:25, z:3}, {n:"cover", x:21, z:19}, {n:"mid-off", x:9, z:33}, {n:"mid-on", x:-9, z:33}, {n:"mid-wicket", x:-23, z:17}, {n:"square leg", x:-26, z:1}, {n:"fine leg", x:-28, z:-27}, {n:"deep mid-wicket", x:-44, z:42}],
+  [{n:"third man", x:30, z:-24}, {n:"deep point", x:52, z:6}, {n:"cover", x:20, z:20}, {n:"long-off", x:16, z:68}, {n:"long-on", x:-16, z:68}, {n:"mid-wicket", x:-22, z:19}, {n:"deep square leg", x:-54, z:4}, {n:"short fine leg", x:-12, z:-12}],
+  [{n:"gully", x:9, z:-3}, {n:"point", x:24, z:2}, {n:"extra cover", x:24, z:30}, {n:"straight hit", x:0, z:72}, {n:"mid-on", x:-11, z:32}, {n:"cow corner", x:-42, z:52}, {n:"square leg", x:-25, z:-1}, {n:"deep fine leg", x:-38, z:-40}]
 ];
+let FIELD = KEEP.concat(FIELDS[0]);
+function setField(){ const n = I(); FIELD = KEEP.concat(FIELDS[(Math.floor(n.balls / 6) + G.cur) % FIELDS.length]); }
+const fieldAng = f => Math.atan2(f.x, f.z - CONTACT) * 180 / Math.PI;
+/* Smallest angle between the aimed direction and a fielder: big means a gap */
+function gapAt(ang){ let m = 180; FIELD.forEach((f, i) => { if(i > 1) m = Math.min(m, Math.abs(angDiff(fieldAng(f), ang))); }); return m; }
 const CENTRE = 10, ROPE = 64;
 
 let G = null, menuOpen = false, rulesOpen = false, setupPlayers = null, opts = {overs:2, wickets:3};
@@ -285,38 +292,45 @@ function ballAt(b, t){
 }
 const perfectT = b => (REL.z - CONTACT) / (REL.z / b.T);
 
-function shotFor(b, e){
+function shotFor(b, e, aim){
   const lv = LEVELS[P().level] || LEVELS.medium, k = lv.win * (b.length === "yorker" ? .8 : b.hb > 1.5 ? .85 : 1), a = Math.abs(e);
   if(a > WIN.edge * k) return null;
   const q = a <= WIN.perfect * k ? "perfect" : a <= WIN.good * k ? "good" : a <= WIN.ok * k ? "ok" : "edge";
   const timing = q === "perfect" ? "Perfect timing" : (e < 0 ? (q === "good" ? "A touch early" : "Early") : (q === "good" ? "A touch late" : "Late"));
-  let out = q === "perfect" ? weighted([[6, 55], [4, 45]])
-    : q === "good" ? weighted([[4, 42], [6, 12], [2, 22], [1, 20], ["c", 4]])
-    : q === "ok" ? weighted([[1, 38], [2, 18], [0, 22], [4, 10], ["c", 12]])
-    : weighted([["cb", 26], [1, 30], [0, 34], [4, 10]]);
+  /* where you tapped sets the direction; timing nudges it (early drifts to leg, late to off) */
+  let ang = Math.max(-120, Math.min(120, aim + Math.max(-1, Math.min(1, e / (WIN.ok * k))) * 18 + rnd(-7, 7)));
+  const g = gapAt(ang), spot = g >= 17 ? "gap" : g <= 8 ? "fielder" : "normal";
+  const T = {
+    perfect:{gap:[[6, 55], [4, 45]], normal:[[6, 50], [4, 42], [1, 8]], fielder:[[6, 40], [4, 30], [1, 18], ["c", 12]]},
+    good:{gap:[[4, 55], [6, 15], [2, 20], [1, 10]], normal:[[4, 40], [6, 10], [2, 22], [1, 22], ["c", 6]], fielder:[[0, 30], [1, 30], ["c", 16], [4, 14], [2, 10]]},
+    ok:{gap:[[2, 30], [1, 30], [4, 20], [0, 15], ["c", 5]], normal:[[1, 38], [2, 18], [0, 22], [4, 10], ["c", 12]], fielder:[[0, 45], [1, 28], ["c", 22], [4, 5]]}
+  };
+  let out = q === "edge" ? weighted([["cb", 26], [1, 30], [0, 34], [4, 10]]) : weighted(T[q][spot]);
   if(b.line === "wide" && (out === 6 || out === 4) && Math.random() < .5) out = 1;
-  let ang = Math.max(-115, Math.min(115, (e / (WIN.ok * k)) * 70 + b.x * 30 + rnd(-12, 12)));
-  if(b.hb > 1.2 && q !== "edge") ang = Math.min(ang, rnd(-95, -50));          /* short balls get pulled */
+  /* bouncers are hard to hit through the off side */
+  if(b.hb > 1.2 && ang > 30 && (out === 6 || out === 4) && Math.random() < .4) out = "c";
   if(out === "cb") ang = e < 0 ? rnd(-175, -160) : rnd(160, 172);
   if(q === "edge" && out !== "cb") ang = e < 0 ? rnd(-150, -120) : rnd(115, 150);
-  return {q, timing, out, ang};
+  return {q, timing, out, ang, spot};
 }
 
 /* ---------- Ball flow ---------- */
 function startBall(delay){
   if(!G || G.phase !== "bat" || menuOpen) return;
   const n = I(); if(n.balls && n.balls % 6 === 0 && n.balls6.slice(n.overStart || 0).filter(x => x !== "Wd").length >= 6) n.overStart = n.balls6.length;
+  const old = FIELD; setField(); if(old !== FIELD && FIELD[2] !== old[2] && n.balls) toast("New over: the field has changed");
   A = {state:"wait", t0:now() + (delay || 900), ball:makeBall(), swing:null, shot:null};
   render();
 }
 const now = () => performance.now();
-function swing(){
+function swing(aim){
   if(!A || A.swing !== null || (A.state !== "flight" && A.state !== "runup")) return;
   if(A.state === "runup"){ A.early = true; }
   const t = A.state === "flight" ? (now() - A.t0) / 1000 : -1;
   A.swing = now();
   if(A.state !== "flight") return;
-  const e = t - perfectT(A.ball), s = shotFor(A.ball, e);
+  A.aim = aim || 0;
+  const e = t - perfectT(A.ball), s = shotFor(A.ball, e, A.aim);
   if(s){ A.shot = s; A.state = "hit"; A.tHit = now(); sfx.bat(s.q === "perfect" ? 1 : s.q === "good" ? .6 : .2); planShot(); }
   else A.missedBy = e;
 }
@@ -337,6 +351,7 @@ function planShot(){
   if(s.out === 4 || s.out === 6){ let bd = 1e9; FIELD.forEach((f, i) => { if(i <= 1) return; const d = Math.hypot(f.x - end.x, f.z - end.z); if(d < bd){ bd = d; chaser = i; } }); }
   A.flight = {end, h, dur, catcher, chaser, ground:s.out === 4 || (typeof s.out === "number" && s.out < 4)};
 }
+function nearestName(ang){ let best = null, m = 1e9; FIELD.forEach((f, i) => { if(i < 2) return; const d = Math.abs(angDiff(fieldAng(f), ang)); if(d < m){ m = d; best = f.n; } }); return best || "the fielder"; }
 const angDiff = (a, b) => { let d = a - b; while(d > 180) d -= 360; while(d < -180) d += 360; return d; };
 
 function finishBall(kind, runs, wicket, wide){
@@ -351,6 +366,8 @@ function finishBall(kind, runs, wicket, wide){
     2:["Two runs.", "They come back for two."], 1:["Quick single.", "One run."], 0:["Straight to the fielder. No run.", "Dot ball."]};
   let line = wide ? "Wide ball. One extra." : wicket ? (kind === "bowled" ? "Bowled him! The stumps are everywhere." : kind === "cb" ? "Edged and caught behind!" : "Caught by " + FIELD[A.flight.catcher].n + "!") : kind === "beaten" ? "Beaten! Lovely ball." : pick(lines[runs]);
   if(wicket && kind === "bowled" && P().level !== "hard" && n.wk < G.wickets) line = "Bowled! " + nm + " is out.";
+  if(!wicket && !wide && A.shot && A.shot.spot === "gap" && runs >= 2) line = pick(["Found the gap! ", "Right through the gap! ", "Placed it perfectly! "]) + line;
+  if(!wicket && !wide && A.shot && A.shot.spot === "fielder" && runs === 0) line = "Straight to " + nearestName(A.shot.ang) + ". No run.";
   A.result.line = line;
   if(runs === 6) sfx.cheer(true); else if(runs === 4) sfx.cheer(false); else if(wicket) sfx.groan();
   const over = n.balls >= ballsTotal() || n.wk >= G.wickets;
@@ -540,6 +557,9 @@ function drawOverlay(){
     cx.fillText(A.state === "wait" ? "Get ready" : A.ball.speed + " km/h", 24, 33); cx.font = "500 11px Poppins, sans-serif"; cx.fillStyle = "#cfe6f5";
     cx.fillText(A.state === "wait" ? "Bowler at the top" : (A.ball.spin ? "Spin" : "Pace") + " · " + A.ball.length, 24, 46);
   }
+  if(A.state === "wait" || A.state === "runup" || A.state === "flight") miniMap();
+  if(A.state === "flight" || A.state === "runup"){ cx.save(); cx.font = "700 12px Montserrat, sans-serif"; cx.textBaseline = "middle"; cx.fillStyle = "rgba(255,255,255,.8)";
+    cx.textAlign = "left"; cx.fillText("‹ LEG SIDE", 14, H * .62); cx.textAlign = "right"; cx.fillText("OFF SIDE ›", W - 14, H * .62); cx.restore(); }
   if(A.state === "hit" && A.shot){ banner(A.shot.timing, 0, .13, 18, A.shot.q === "perfect" ? "#f7a61b" : "#ffffff"); }
   if(A.state === "result" && A.result){
     const r = A.result, u = Math.min(1, (t - A.tRes) / 220);
@@ -551,6 +571,18 @@ function drawOverlay(){
     banner(sub, H * .53, 0, Math.max(13, H * .03), "#e8f3fb", u);
   }
 }
+/* Small field map: fielders, the rope and the gaps */
+function miniMap(){
+  const r = Math.max(40, Math.min(58, Math.min(W, H) * .12)), mx = W - r - 14, my = 64 + r, k = r / (ROPE + 6);
+  cx.save(); cx.fillStyle = "rgba(11,40,70,.72)"; cx.beginPath(); cx.arc(mx, my, r + 6, 0, 7); cx.fill();
+  cx.fillStyle = "#3f9b4a"; cx.beginPath(); cx.arc(mx, my, r, 0, 7); cx.fill();
+  cx.strokeStyle = "rgba(255,255,255,.8)"; cx.lineWidth = 1; cx.beginPath(); cx.arc(mx, my, ROPE * k, 0, 7); cx.stroke();
+  const S = (x, z) => [mx + x * k, my + (CENTRE - z) * k];
+  const a = S(-1.5, 0), b = S(1.5, 20); cx.fillStyle = "#e3cf98"; cx.fillRect(a[0], b[1], Math.max(2, b[0] - a[0]), a[1] - b[1]);
+  FIELD.forEach((f, i) => { const p = S(f.x, f.z); cx.fillStyle = i < 2 ? "rgba(255,255,255,.7)" : "#ff6b57"; cx.beginPath(); cx.arc(p[0], p[1], i < 2 ? 1.6 : 2.6, 0, 7); cx.fill(); });
+  const bt = S(0, 0); cx.fillStyle = "#1a98cb"; cx.beginPath(); cx.arc(bt[0], bt[1], 2.6, 0, 7); cx.fill();
+  cx.fillStyle = "#fff"; cx.font = "600 9px Poppins, sans-serif"; cx.textAlign = "center"; cx.fillText("FIELD", mx, my + r + 16); cx.restore();
+}
 function banner(text, y, yf, size, col, alpha){
   cx.save(); cx.globalAlpha = alpha === undefined ? 1 : alpha; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.font = `800 ${size}px Montserrat, sans-serif`;
   const yy = y || H * yf; cx.lineWidth = Math.max(3, size * .12); cx.strokeStyle = "rgba(6,22,40,.65)"; cx.strokeText(text, W / 2, yy); cx.fillStyle = col; cx.fillText(text, W / 2, yy); cx.restore();
@@ -558,10 +590,12 @@ function banner(text, y, yf, size, col, alpha){
 
 /* ---------- Screens ---------- */
 const RULES = `<div class="card"><h3>How to play</h3>
-  <p class="sub" style="color:var(--ink)">You bat, the computer bowls. <b>Tap anywhere on the pitch</b> (or press the space bar) to swing as the ball reaches you.</p>
+  <p class="sub" style="color:var(--ink)">You bat, the computer bowls. <b>Tap the pitch</b> to swing as the ball reaches you.</p>
   <ul class="sub" style="margin:0;padding-left:1.1em;color:var(--ink)">
-    <li><b>Perfect timing</b> sends it straight down the ground for 4 or 6.</li>
-    <li><b>Early</b> pulls it to the leg side (left). <b>Late</b> cuts it to the off side (right).</li>
+    <li><b>Perfect timing</b> means a 4 or 6 most of the time.</li>
+    <li><b>Where you tap aims the shot:</b> left side of the pitch for the leg side, the middle to hit straight, the right side for the off side. On a keyboard use the arrow keys.</li>
+    <li>The small <b>field map</b> shows the fielders (red dots). Hit into a <b>gap</b> for more boundaries; hit straight at a fielder and you may be stopped or caught. The field changes every over.</li>
+    <li>Timing nudges the direction too: early drifts towards the leg side, late towards the off side.</li>
     <li>Miss a ball that is heading for the stumps and you are <b>bowled</b>. Edges and mistimed shots can be <b>caught</b>.</li>
     <li>The orange ring on the pitch shows where to hit the ball (Easy and Medium).</li>
     <li>Each player bats for the same number of overs. Highest score wins; if the scores are level, fewer wickets lost wins.</li>
@@ -594,7 +628,7 @@ function panelHTML(){
       <div class="big">${n.runs}<span>/${n.wk}</span></div></div></div>
     ${need !== null ? `<div class="card target"><b>${need > 0 ? `Needs ${need} from ${left} ${left === 1 ? "ball" : "balls"}` : `In the lead!`}</b><span class="sub">${esc(G.players[top].name)} scored ${G.inn[top].runs}</span></div>` : ""}
     <div class="card"><h3>This over</h3><div class="balls">${thisOver.map(x => `<span class="bl ${x === "W" ? "w" : x === "4" || x === "6" ? "b" : x === "Wd" ? "x" : ""}">${x === "0" ? "•" : x}</span>`).join("")}${Array.from({length:Math.max(0, 6 - legal)}, () => `<span class="bl e"></span>`).join("")}</div>
-      <p class="sub" id="last">${A && A.result ? esc(A.result.line) : "Tap anywhere on the pitch when the ball reaches the orange ring."}</p></div>
+      <p class="sub" id="last">${A && A.result ? esc(A.result.line) : "Tap when the ball reaches the orange ring. Tap on the left to hit to the leg side, the middle to hit straight, the right for the off side. Aim for the gaps on the field map."}</p></div>
     <div class="card"><h3>Scorecard</h3><div class="srow"><span>Fours</span><b>${n.fours}</b></div><div class="srow"><span>Sixes</span><b>${n.sixes}</b></div><div class="srow"><span>Strike rate</span><b>${n.balls ? Math.round(n.runs * 100 / n.balls) : 0}</b></div>
       ${G.players.length > 1 ? `<div class="srow"><span>Batting order</span><b>${G.players.map((q, i) => i === G.cur ? `<u>${esc(q.name)}</u>` : G.inn[i].done ? esc(q.name) + " " + G.inn[i].runs : esc(q.name)).join(" · ")}</b></div>` : ""}</div>`;
 }
@@ -617,7 +651,7 @@ function render(){
   else if(G.phase === "cover"){ app.innerHTML = coverScreen(); stopLoop(); }
   else if(G.phase === "innEnd"){ app.innerHTML = innEndScreen(); stopLoop(); }
   else if(G.phase === "over"){ app.innerHTML = overScreen(); stopLoop(); }
-  else { if(!$("#pitch")) app.innerHTML = `<main class="play"><div class="stage" id="stage"><canvas id="pitch" aria-label="Cricket pitch. Tap to swing the bat."></canvas><div class="taphint">Tap anywhere to swing</div></div><div class="panel" id="panel"></div></main>${rulesOpen ? `<div class="rulesbox">${RULES}<button class="btn" data-a="rules">Close the rules</button></div>` : ""}`;
+  else { if(!$("#pitch")) app.innerHTML = `<main class="play"><div class="stage" id="stage"><canvas id="pitch" aria-label="Cricket pitch. Tap to swing the bat."></canvas><div class="taphint">Tap left, middle or right to aim your shot</div></div><div class="panel" id="panel"></div></main>${rulesOpen ? `<div class="rulesbox">${RULES}<button class="btn" data-a="rules">Close the rules</button></div>` : ""}`;
     else { const rb = $(".rulesbox"); if(rulesOpen && !rb) app.insertAdjacentHTML("beforeend", `<div class="rulesbox">${RULES}<button class="btn" data-a="rules">Close the rules</button></div>`); if(!rulesOpen && rb) rb.remove(); }
     renderPanel(); startLoop(); }
   save();
@@ -632,8 +666,13 @@ function endInnings(){ const p = P(), n = I(); const b = best[p.name];
 
 /* ---------- Input ---------- */
 if(typeof document !== "undefined" && document.addEventListener){
-document.addEventListener("pointerdown", e => { const st = e.target.closest && e.target.closest("#stage"); if(!st) return; e.preventDefault(); audio(); swing(); }, {passive:false});
-document.addEventListener("keydown", e => { if((e.code === "Space" || e.key === "Enter") && G && G.phase === "bat" && !menuOpen){ e.preventDefault(); swing(); } });
+/* Tap position aims the shot: left = leg side, middle = straight, right = off side */
+const aimFromX = (x, w) => { const d = Math.max(-1, Math.min(1, (x - w / 2) / (w * .42))); return Math.abs(d) < .12 ? 0 : d * 110; };
+document.addEventListener("pointerdown", e => { const st = e.target.closest && e.target.closest("#stage"); if(!st) return; e.preventDefault(); audio();
+  const r = st.getBoundingClientRect(); swing(aimFromX(e.clientX - r.left, r.width)); }, {passive:false});
+document.addEventListener("keydown", e => { if(!G || G.phase !== "bat" || menuOpen) return;
+  const aim = {ArrowLeft:-75, ArrowRight:75, ArrowUp:0, Space:0, Enter:0}[e.code] ?? {Enter:0}[e.key];
+  if(aim !== undefined){ e.preventDefault(); swing(aim); } });
 document.addEventListener("click", e => {
   const b = e.target.closest("[data-a]"); if(!b || b.disabled) return;
   switch(b.dataset.a){
