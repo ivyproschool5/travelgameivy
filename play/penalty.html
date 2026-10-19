@@ -300,7 +300,7 @@ function kick(){
       if(Math.random() < p){ res = "s"; end = "hands"; reason = !aim ? "Straight at the keeper" : green ? "Great save" : "Great save: the shot was too weak"; }
       else { res = "g"; reason = aim ? "Right in the corner, out of reach" : "Over the keeper's hands"; end = aim ? {u:aim * .9, v:.86} : {u:rnd(-.12, .12), v:.9}; }
     } else {
-      res = "g"; reason = aim === 0 ? "Down the middle as the keeper dived" : "Keeper dived the wrong way";
+      res = "g"; reason = aim === 0 ? "Down the middle as the keeper dived" : dive === 0 ? "Keeper stayed in the middle" : "Keeper dived the wrong way";
       end = aim ? (green ? {u:aim * .82, v:rnd(.55, .8)} : {u:aim * .55, v:rnd(.2, .4)}) : (green ? {u:rnd(-.08, .08), v:rnd(.5, .7)} : {u:rnd(-.1, .1), v:rnd(.25, .4)});
     }
   }
@@ -394,7 +394,7 @@ function draw(){
   drawOverlay(g, t);
 }
 function drawScene(g){
-  const sb = g.gt + 2;     /* bottom of the stands: the ad boards sit just above the crossbar */
+  const sb = g.gt - Math.max(4, g.gw * .018);     /* bottom of the stands: the ad boards sit just above the crossbar */
   let gr = cx.createLinearGradient(0, 0, 0, H * .08); gr.addColorStop(0, "#4fb3e6"); gr.addColorStop(1, "#cfeefb"); cx.fillStyle = gr; cx.fillRect(0, 0, W, H * .08);
   cx.fillStyle = "#24364a"; cx.fillRect(0, H * .08, W, sb - H * .08);
   if(!crowd || crowd.w !== W || crowd.h !== H){ crowd = {w:W, h:H, dots:[]}; const cols = ["#f7a61b","#ffffff","#1a98cb","#e05a5a","#7fd17f","#f3d36b","#c48df0"]; for(let i = 0; i < W * 1.6; i++) crowd.dots.push([Math.random(), Math.random(), cols[i % cols.length]]); }

@@ -422,7 +422,7 @@ function drawQuestion(){
   let free = list.map((_, i) => set + i).filter(id => !used.includes(id)), wrap = false;
   if(!free.length){ wrap = true; used = used.filter(id => !id.startsWith(set)); free = list.map((_, i) => set + i); toast("All questions used. Starting the question bank again."); }
   const id = free[Math.floor(Math.random() * free.length)], [a, b] = list[+id.slice(set.length)].split("|");
-  used.push(id); G.q = {id, a, b}; G.guess = {}; G.phase = "guess"; return wrap;
+  used.push(id); G.q = {id, a, b}; G.guess = {}; G.secret = null; G.phase = "secret"; return wrap;
 }
 function newGame(players){
   G = {v:1, players:players.map(p => ({id:p.id, name:p.name})), rounds:players.length * (opts.turns || 2), turns:opts.turns || 2, set:opts.set, round:0,
@@ -433,7 +433,7 @@ const HOT = () => G.round % G.players.length;
 const guessers = () => G.players.map((_, i) => i).filter(i => i !== HOT());
 function ranking(){ return G.players.map((_, i) => i).sort((a, b) => G.score[b] - G.score[a] || G.right[b] - G.right[a] || a - b); }
 const qText = q => "Would you rather " + q.a + ", or " + q.b + "?";
-function readQuestion(){ say(G.players[HOT()].name + " is in the hot seat. " + qText(G.q)); }
+function readQuestion(){ const h = G.players[HOT()].name; say(h + " is in the hot seat. " + qText(G.q) + (G.phase === "secret" ? " Pass the phone to " + h + " to pick secretly." : "")); }
 const nameList = arr => arr.length < 2 ? arr.join("") : arr.slice(0, -1).join(", ") + " and " + arr[arr.length - 1];
 
 function reveal(pick){
@@ -460,8 +460,9 @@ function nextRound(){
 const RULES = `<div class="card"><h3>How to play</h3>
   <ul class="sub" style="margin:0;padding-left:1.1em;color:var(--ink);display:flex;flex-direction:column;gap:6px">
     <li>One player sits in the <b>hot seat</b>. The phone reads out a question: would you rather A or B?</li>
-    <li>Everyone else guesses out loud what the hot-seat player will pick. The phone holder taps A or B next to each name.</li>
-    <li>Then the hot-seat player says their real answer and the phone holder taps it.</li>
+    <li>First, pass the phone to the hot-seat player, who <b>taps their answer secretly</b>. It stays hidden.</li>
+    <li>Pass the phone back. Everyone else guesses out loud; the phone holder taps A or B next to each name.</li>
+    <li>Tap <b>Reveal</b> to show the hot-seat player's locked answer.</li>
     <li>Right guess: <b>+10</b>. The hot-seat player gets <b>+5</b> for every wrong guess, so surprise them!</li>
     <li>The hot seat moves on each round. Most points wins; if level, more right guesses wins.</li>
   </ul></div>`;
@@ -485,13 +486,14 @@ function optCard(L, text, mode){
 function minis(){ return `<div class="minis">${G.players.map((p, i) => `<span>${esc(p.name)} <b>${G.score[i]}</b></span>`).join("")}</div>`; }
 function questionCol(mode){
   const hot = G.players[HOT()].name, q = G.q, res = G.phase === "result";
-  const doing = G.phase === "guess" ? "Everyone else: guess out loud what " + esc(hot) + " will pick."
+  const doing = G.phase === "secret" ? "Pass the phone to " + esc(hot) + ". " + esc(hot) + ": tap your answer secretly. No peeking, everyone else!"
+    : G.phase === "guess" ? esc(hot) + " has locked in an answer. Everyone else: guess out loud what " + esc(hot) + " picked."
     : G.phase === "answer" ? esc(hot) + ": say your real answer. Tap it below."
     : esc(hot) + " picked " + G.last.pick + ". See who guessed right.";
   return `<div class="col">
     <div class="meta"><span>Round ${G.round + 1} of ${G.rounds}</span><span>${SETS[G.set]}</span></div>
     <div class="card turn"><p class="hot">${esc(hot)} is in the hot seat</p><p class="doing">${doing}</p>
-      ${G.phase === "guess" ? `<button class="rbtn" data-a="read">Read it again</button>` : ""}</div>
+      ${G.phase === "guess" || G.phase === "secret" ? `<button class="rbtn" data-a="read">Read it again</button>` : ""}</div>
     <p class="q">Would you rather...</p>
     <div class="opts">${optCard("A", q.a, mode === "tap" ? "tap" : res ? (G.last.pick === "A" ? "won" : "lost") : "")}${optCard("B", q.b, mode === "tap" ? "tap" : res ? (G.last.pick === "B" ? "won" : "lost") : "")}</div>
   </div>`;
@@ -501,8 +503,20 @@ function guessScreen(){
   const rows = gs.map(i => `<div class="grow"><span class="nm">${esc(G.players[i].name)}</span>${["A", "B"].map(L => `<button class="gb ${L.toLowerCase()} ${G.guess[i] === L ? "on" : ""}" data-a="guess" data-i="${i}" data-v="${L}" aria-pressed="${G.guess[i] === L}" aria-label="${esc(G.players[i].name)} guesses ${L}">${L}<small>${esc(L === "A" ? G.q.a : G.q.b)}</small></button>`).join("")}</div>`).join("");
   return `<div class="wrap"><div class="play">${questionCol("show")}
     <div class="col"><div class="card"><h3>Tap each guess</h3><div class="guesses">${rows}</div></div>
-      <button class="btn go big" data-a="toAnswer" ${all ? "" : "disabled"}>${all ? "All guesses in. Now " + esc(G.players[HOT()].name) + " answers" : "Waiting for " + (gs.length - gs.filter(i => G.guess[i]).length) + " more " + (gs.length - gs.filter(i => G.guess[i]).length === 1 ? "guess" : "guesses")}</button>
+      <button class="btn go big" data-a="toAnswer" ${all ? "" : "disabled"}>${all ? "All guesses in. Reveal " + esc(G.players[HOT()].name) + "'s answer" : "Waiting for " + (gs.length - gs.filter(i => G.guess[i]).length) + " more " + (gs.length - gs.filter(i => G.guess[i]).length === 1 ? "guess" : "guesses")}</button>
       <button class="btn ghost" data-a="skip">Skip this question</button>${minis()}</div></div></div>`;
+}
+/* The hot-seat player picks in secret before anyone guesses, so the answer cannot change later */
+function secretScreen(){
+  const hot = esc(G.players[HOT()].name);
+  return `<div class="wrap"><div class="play">${questionCol("tap")}
+    <div class="col"><div class="card"><h3>Only ${hot} looks now</h3><p class="sub" style="color:var(--ink)">${hot}, tap A or B above. Nobody else will see your answer until the reveal.</p></div>
+      <button class="btn ghost" data-a="skip">Skip this question</button>${minis()}</div></div></div>`;
+}
+function lockedScreen(){
+  const hot = esc(G.players[HOT()].name);
+  return `<div class="setup"><div class="card turn"><p class="hot">Locked in!</p><p class="doing">${hot}'s answer is saved and hidden. Pass the phone back to the person who taps the guesses.</p></div>
+    <button class="btn go big" data-a="toGuess">Start guessing</button></div>`;
 }
 function answerScreen(){
   const gs = guessers();
@@ -532,6 +546,8 @@ function render(){
   const app = $("#app");
   let h;
   if(menuOpen || !G) h = setupScreen();
+  else if(G.phase === "secret") h = secretScreen();
+  else if(G.phase === "locked") h = lockedScreen();
   else if(G.phase === "guess") h = guessScreen();
   else if(G.phase === "answer") h = answerScreen();
   else if(G.phase === "result") h = resultScreen();
@@ -558,9 +574,10 @@ document.addEventListener("click", e => {
     case "read": readQuestion(); return;
     case "guess": G.guess[+b.dataset.i] = b.dataset.v; break;
     case "skip": if(!drawQuestion()) toast("New question"); readQuestion(); break;
-    case "toAnswer": G.phase = "answer"; top = true; say(G.players[HOT()].name + ", what is your real answer? A, or B?"); break;
+    case "toAnswer": if(G.secret){ reveal(G.secret); top = true; } else { G.phase = "answer"; top = true; } break;
+    case "toGuess": G.phase = "guess"; top = true; say("Everyone else, guess what " + G.players[HOT()].name + " picked."); break;
     case "back": G.phase = "guess"; break;
-    case "pick": reveal(b.dataset.v); top = true; break;
+    case "pick": if(G.phase === "secret"){ G.secret = b.dataset.v; G.phase = "locked"; top = true; say("Locked in."); } else { reveal(b.dataset.v); top = true; } break;
     case "next": nextRound(); top = true; break;
     case "rally": if(sendToRally()){ G.sent = true; toast("Points added to the scoreboard"); } else toast("Open the games home screen once on this device first"); break;
     default: return;
