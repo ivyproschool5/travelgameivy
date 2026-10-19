@@ -423,7 +423,7 @@ function fit(){ cv = $("#pitch"); if(!cv) return false; const r = cv.getBounding
    The green HIT box is the timing window itself: tap while the ball is inside it. */
 let crowd = null;
 const GY = () => H * .74;                                  /* ground line */
-const SC = () => Math.min(W / 10, H / 8);              /* pixels per metre, up and down */
+const SC = () => Math.min(W / 10, H / 8, 60);              /* pixels per metre, up and down */
 const XB = () => W * .8;                                   /* batter's stumps */
 const X = z => XB() - z * (W * .72 / 19.4);                /* distance from the batter to screen x */
 const Yh = y => GY() - y * SC();
@@ -579,11 +579,12 @@ function drawOverlay(){
   const t = now();
   /* speed and delivery type */
   if(A.state === "flight" || A.state === "runup" || A.state === "wait"){
-    cx.fillStyle = "rgba(11,40,70,.72)"; rr(12, 12, 132, 40, 12); cx.fill();
+    cx.fillStyle = "rgba(11,40,70,.72)"; rr(12, 12, 108, 40, 12); cx.fill();
     cx.fillStyle = "#fff"; cx.textAlign = "left"; cx.textBaseline = "alphabetic"; cx.font = "800 17px Montserrat, sans-serif";
-    cx.fillText(A.state === "wait" ? "Get ready" : A.ball.speed + " km/h", 24, 33); cx.font = "500 11px Poppins, sans-serif"; cx.fillStyle = "#cfe6f5";
-    cx.fillText(A.state === "wait" ? "Bowler coming in" : (A.ball.spin ? "Spin" : "Pace") + " · " + A.ball.length, 24, 46);
+    cx.font = "800 15px Montserrat, sans-serif"; cx.fillText(A.state === "wait" ? "Get ready" : A.ball.speed + " km/h", 22, 33); cx.font = "500 11px Poppins, sans-serif"; cx.fillStyle = "#cfe6f5";
+    cx.fillText(A.state === "wait" ? "Bowler coming in" : (A.ball.spin ? "Spin" : "Pace") + " · " + A.ball.length, 22, 46);
   }
+  if(A.state === "wait" || A.state === "runup" || A.state === "flight") fieldMap();
   if(A.state === "hit" && A.shot){ banner(A.shot.timing + " · aimed " + aimName(A.aim), 0, .17, Math.min(18, W * .045), A.shot.q === "perfect" ? "#f7a61b" : "#ffffff"); }
   /* ripple where the finger landed */
   if(A.tap && t - A.tap.t < 500){ const u = (t - A.tap.t) / 500; cx.strokeStyle = `rgba(255,255,255,${1 - u})`; cx.lineWidth = 4; cx.beginPath(); cx.arc(A.tap.x, A.tap.y, 18 + u * 40, 0, 7); cx.stroke(); }
@@ -597,6 +598,33 @@ function drawOverlay(){
     banner(sub, H * .53, 0, Math.max(13, H * .03), "#e8f3fb", u);
   }
 }
+/* Field map at the top: fielders, the batter and the three shot directions (picked one in amber) */
+function fieldMap(){
+  const r = Math.max(36, Math.min(H * .14, (W - 250) / 2, 96)), mx = W / 2, my = 12 + r, k = r / (ROPE + 6);
+  const S = (x, z) => [mx + x * k, my + (CENTRE - z) * k];
+  cx.save();
+  cx.fillStyle = "rgba(11,40,70,.78)"; cx.beginPath(); cx.arc(mx, my, r + 5, 0, 7); cx.fill();
+  cx.fillStyle = "#3f9b4a"; cx.beginPath(); cx.arc(mx, my, r, 0, 7); cx.fill();
+  cx.strokeStyle = "rgba(255,255,255,.85)"; cx.lineWidth = 1.2; cx.beginPath(); cx.arc(mx, my, ROPE * k, 0, 7); cx.stroke();
+  cx.setLineDash([2, 3]); cx.strokeStyle = "rgba(255,255,255,.4)"; cx.beginPath(); cx.arc(mx, my, 30 * k, 0, 7); cx.stroke(); cx.setLineDash([]);
+  const a = S(-1.5, -.5), b = S(1.5, 20.5); cx.fillStyle = "#e3cf98"; cx.fillRect(a[0], b[1], Math.max(2, b[0] - a[0]), a[1] - b[1]);
+  /* direction arrows from the batter */
+  const c = S(0, CONTACT);
+  [-1, 0, 1].forEach(v => { const on = v === aimSel, ang = AIMS[v] * Math.PI / 180, L = r * (on ? .86 : .7), ex = c[0] + Math.sin(ang) * L, ey = c[1] - Math.cos(ang) * L;
+    cx.strokeStyle = on ? "#f7a61b" : "rgba(255,255,255,.45)"; cx.lineWidth = on ? 3.5 : 1.5; cx.lineCap = "round";
+    cx.beginPath(); cx.moveTo(c[0], c[1]); cx.lineTo(ex, ey); cx.stroke();
+    if(on){ const h = 7; cx.fillStyle = "#f7a61b"; cx.beginPath(); cx.moveTo(ex + Math.sin(ang) * 3, ey - Math.cos(ang) * 3);
+      cx.lineTo(ex - Math.sin(ang) * h + Math.cos(ang) * h * .7, ey + Math.cos(ang) * h + Math.sin(ang) * h * .7);
+      cx.lineTo(ex - Math.sin(ang) * h - Math.cos(ang) * h * .7, ey + Math.cos(ang) * h - Math.sin(ang) * h * .7); cx.closePath(); cx.fill(); } });
+  FIELD.forEach((f, i) => { const p = S(f.x, f.z); cx.fillStyle = i < 2 ? "rgba(255,255,255,.85)" : "#ff5a45"; cx.strokeStyle = "rgba(0,0,0,.35)"; cx.lineWidth = 1;
+    cx.beginPath(); cx.arc(p[0], p[1], i < 2 ? 2.2 : 3.6, 0, 7); cx.fill(); cx.stroke(); });
+  cx.fillStyle = "#1a98cb"; cx.strokeStyle = "#fff"; cx.lineWidth = 1.5; cx.beginPath(); cx.arc(c[0], c[1], 3.6, 0, 7); cx.fill(); cx.stroke();
+  /* hint for the picked direction */
+  const g = gapAt(AIMS[aimSel]), txt = g >= 17 ? "Gap: good for a 4" : g <= 8 ? "Fielder in the way" : "Some space", col = g >= 17 ? "#7ee08f" : g <= 8 ? "#ff8a7a" : "#f3d36b";
+  cx.font = "700 11px Poppins, sans-serif"; const tw = cx.measureText(txt).width + 18; cx.fillStyle = "rgba(11,40,70,.85)"; rr(mx - tw / 2, my + r + 8, tw, 20, 10); cx.fill();
+  cx.fillStyle = col; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText(txt, mx, my + r + 18.5);
+  cx.restore();
+}
 function banner(text, y, yf, size, col, alpha){
   cx.save(); cx.globalAlpha = alpha === undefined ? 1 : alpha; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.font = `800 ${size}px Montserrat, sans-serif`;
   const yy = y || H * yf; cx.lineWidth = Math.max(3, size * .12); cx.strokeStyle = "rgba(6,22,40,.65)"; cx.strokeText(text, W / 2, yy); cx.fillStyle = col; cx.fillText(text, W / 2, yy); cx.restore();
@@ -609,7 +637,7 @@ const RULES = `<div class="card"><h3>How to play</h3>
     <li><b>Tap anywhere on the pitch when the ball is inside the green HIT box.</b> Right in the middle of the box is perfect: mostly 4s and 6s. The box glows when the ball is in it.</li>
     <li>Pick where to hit with <b>Left</b>, <b>Straight</b> or <b>Right</b> at the bottom. It stays picked until you change it. (Left is the leg side, right is the off side.)</li>
     <li>Miss a ball that is heading for the stumps and you are <b>bowled</b>. Bad timing can give an edge or a catch.</li>
-    <li>After each shot the ground view shows where the ball went and which fielder chased it. Hitting into a gap gives more boundaries.</li>
+    <li>The <b>field map</b> at the top shows every fielder (red dots) and your picked direction (amber arrow). It tells you if you are aiming at a gap or at a fielder. Hitting into a gap gives more boundaries. The field changes every over.</li>
     <li>On a keyboard: arrow keys pick the direction, space bar hits.</li>
     <li>Each player bats for the same number of overs. Highest score wins; if level, fewer wickets lost wins.</li>
   </ul></div>`;
