@@ -201,7 +201,7 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const PUBLIC = typeof location !== "undefined" && /\/play\//.test(location.pathname);
 const RALLY_KEY = PUBLIC ? "ivy-rr-v1" : "himachal-rally-v1", KEY = PUBLIC ? "ivy-cricket-v1" : "family-cricket-v1";
-const LEVELS = {easy:{name:"Easy", time:1.45, win:1.85}, medium:{name:"Medium", time:1.05, win:1.25}, hard:{name:"Hard", time:.82, win:.85}};
+const LEVELS = {easy:{name:"Easy", time:1.9, win:1.9}, medium:{name:"Medium", time:1.4, win:1.35}, hard:{name:"Hard", time:1.05, win:.95}};
 /* Three shot directions picked with the buttons on the pitch */
 const AIMS = {"-1":-58, "0":0, "1":58};
 let aimSel = 0;
@@ -288,7 +288,7 @@ function makeBall(){
     turn:spin ? rnd(-.18, .18) : 0, T:base * lv.time, onStumps:Math.abs(X) < .14 && hbs < .8 && !(length === "short")};
 }
 /* Ball position at time t after release: world X (off side +), Y height, Z distance from the batter */
-const REL = {x:.3, y:2.15, z:19.4}, CONTACT = .9;
+const REL = {x:.3, y:2.15, z:19.4}, CONTACT = 1.5;
 function ballAt(b, t){
   const v = REL.z / b.T, z = REL.z - v * t;
   let y, x;
@@ -309,7 +309,7 @@ function shotFor(b, e, aim){
   let ang = aim + rnd(-9, 9);
   const g = gapAt(ang), spot = g >= 17 ? "gap" : g <= 8 ? "fielder" : "normal";
   const T = {
-    perfect:{gap:[[6, 55], [4, 45]], normal:[[6, 50], [4, 42], [1, 8]], fielder:[[6, 45], [4, 35], [1, 20]]},
+    perfect:{gap:[[6, 55], [4, 45]], normal:[[6, 50], [4, 50]], fielder:[[6, 45], [4, 55]]},
     good:{gap:[[4, 55], [6, 15], [2, 20], [1, 10]], normal:[[4, 40], [6, 10], [2, 22], [1, 22], ["c", 6]], fielder:[[0, 30], [1, 30], ["c", 16], [4, 14], [2, 10]]},
     ok:{gap:[[2, 30], [1, 30], [4, 20], [0, 15], ["c", 5]], normal:[[1, 38], [2, 18], [0, 22], [4, 10], ["c", 12]], fielder:[[0, 45], [1, 28], ["c", 22], [4, 5]]}
   };
@@ -363,7 +363,7 @@ function planShot(){
 function zoneName(a){ const x = Math.abs(a), leg = a < 0;
   if(x <= 18) return "straight down the ground"; if(x <= 70) return leg ? "mid-wicket" : "cover";
   if(x <= 115) return leg ? "square leg" : "point"; if(x <= 150) return leg ? "fine leg" : "third man"; return "behind the wicket"; }
-const aimName = a => Math.abs(a) < 1 ? "straight" : a < 0 ? "to leg" : "to off";
+const aimName = a => Math.abs(a) < 1 ? "straight" : a < 0 ? "left" : "right";
 const wentTo = a => Math.abs(a) <= 18 ? "it went straight down the ground" : Math.abs(a) > 150 ? "it went behind the wicket" : "it went to " + zoneName(a);
 function nearestName(ang){ let best = null, m = 1e9; FIELD.forEach((f, i) => { if(i < 2) return; const d = Math.abs(angDiff(fieldAng(f), ang)); if(d < m){ m = d; best = f.n; } }); return best || "the fielder"; }
 const angDiff = (a, b) => { let d = a - b; while(d > 180) d -= 360; while(d < -180) d += 360; return d; };
@@ -419,111 +419,116 @@ let cv = null, cx = null, W = 0, H = 0, DPR = 1;
 function fit(){ cv = $("#pitch"); if(!cv) return false; const r = cv.getBoundingClientRect(); DPR = Math.min(2, window.devicePixelRatio || 1);
   if(Math.round(r.width * DPR) !== cv.width || Math.round(r.height * DPR) !== cv.height){ cv.width = Math.round(r.width * DPR); cv.height = Math.round(r.height * DPR); }
   W = r.width; H = r.height; cx = cv.getContext("2d"); cx.setTransform(DPR, 0, 0, DPR, 0, 0); return W > 0 && H > 0; }
-/* Camera behind the batter: Z -12 m, 3.2 m up */
-const CAM = {z:-12, h:3.2};
-function pr(X, Y, Z){ const hy = H * .3, F = H * .54 * 12 / CAM.h, d = Math.max(.6, Z - CAM.z), s = F / d; return [W / 2 + X * s, hy + (CAM.h - Y) * s, s]; }
-function poly(pts, fill){ cx.beginPath(); pts.forEach((p, i) => i ? cx.lineTo(p[0], p[1]) : cx.moveTo(p[0], p[1])); cx.closePath(); cx.fillStyle = fill; cx.fill(); }
+/* Side-on view, like the Google cricket doodle: bowler on the left, batter on the right.
+   The green HIT box is the timing window itself: tap while the ball is inside it. */
 let crowd = null;
+const GY = () => H * .74;                                  /* ground line */
+const SC = () => Math.min(W / 10, H / 8);              /* pixels per metre, up and down */
+const XB = () => W * .8;                                   /* batter's stumps */
+const X = z => XB() - z * (W * .72 / 19.4);                /* distance from the batter to screen x */
+const Yh = y => GY() - y * SC();
 function draw(){
   if(!fit()) return;
   const hit = A && (A.state === "hit" || (A.state === "result" && A.flight && A.result && !A.result.wide && A.result.kind !== "bowled" && A.result.kind !== "beaten"));
-  if(hit) drawField(); else drawPitch();
+  if(hit) drawField(); else drawSide();
   drawOverlay();
 }
-function drawPitch(){
-  const hy = H * .3;
-  let g = cx.createLinearGradient(0, 0, 0, hy); g.addColorStop(0, "#4fb3e6"); g.addColorStop(1, "#cfeefb"); cx.fillStyle = g; cx.fillRect(0, 0, W, hy);
-  /* stands and crowd */
-  const st = pr(0, 0, 92)[1], top = hy - H * .085;
-  cx.fillStyle = "#24364a"; cx.fillRect(0, top, W, st - top + 1);
-  if(!crowd || crowd.w !== W){ crowd = {w:W, dots:[]}; const cols = ["#f7a61b","#ffffff","#1a98cb","#e05a5a","#7fd17f","#f3d36b","#c48df0"]; for(let i = 0; i < W * .9; i++) crowd.dots.push([Math.random(), Math.random(), cols[i % cols.length]]); }
-  crowd.dots.forEach(([u, v, c]) => { cx.fillStyle = c; cx.globalAlpha = .75; cx.fillRect(u * W, top + 3 + v * (st - top - 8), 2, 2); }); cx.globalAlpha = 1;
-  cx.fillStyle = "#0b5394"; cx.fillRect(0, st - 6, W, 6);
-  cx.fillStyle = "#fff"; cx.font = `700 ${Math.max(7, H * .014)}px Montserrat, sans-serif`; cx.textAlign = "center"; cx.textBaseline = "middle";
-  for(let x = W * .12; x < W; x += W * .3) cx.fillText(PUBLIC ? "IVY ROAD RALLY" : "HIMACHAL ROAD RALLY", x, st - 3);
-  /* outfield with mowing stripes */
-  for(let z = 90, k = 0; z > -12; z -= 6, k++){ const y1 = pr(0, 0, z)[1], y2 = pr(0, 0, z - 6)[1]; cx.fillStyle = k % 2 ? "#3f9b4a" : "#47a853"; cx.fillRect(0, y1, W, y2 - y1 + 1); }
-  /* rope */
-  cx.strokeStyle = "rgba(255,255,255,.85)"; cx.lineWidth = 2; cx.beginPath(); let first = true;
-  for(let a = -80; a <= 80; a += 2){ const r = a * Math.PI / 180, p = pr(Math.sin(r) * ROPE, 0, CENTRE + Math.cos(r) * ROPE); first ? cx.moveTo(p[0], p[1]) : cx.lineTo(p[0], p[1]); first = false; } cx.stroke();
-  /* pitch */
-  const pc = [pr(-1.52, 0, -1.6), pr(1.52, 0, -1.6), pr(1.52, 0, 21.7), pr(-1.52, 0, 21.7)];
-  g = cx.createLinearGradient(0, pc[2][1], 0, pc[0][1]); g.addColorStop(0, "#d9c58f"); g.addColorStop(1, "#e6d4a1"); poly([pc[0], pc[1], pc[2], pc[3]], g);
-  [[0, 3.2], [0, 16.5]].forEach(([x, z]) => { const a = pr(x - .6, 0, z - 1.6), b = pr(x + .6, 0, z + 1.6); cx.fillStyle = "rgba(160,130,80,.18)"; cx.beginPath(); cx.ellipse((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, Math.abs(b[0] - a[0]) / 2 + 2, Math.abs(b[1] - a[1]) / 2 + 1, 0, 0, 7); cx.fill(); });
-  const line = (x1, z1, x2, z2, w) => { const a = pr(x1, 0, z1), b = pr(x2, 0, z2); cx.strokeStyle = "rgba(255,255,255,.95)"; cx.lineWidth = Math.max(1, w * a[2]); cx.beginPath(); cx.moveTo(a[0], a[1]); cx.lineTo(b[0], b[1]); cx.stroke(); };
-  [[1.22, 0], [18.9, 20.12]].forEach(([pop, stump]) => { line(-1.83, pop, 1.83, pop, .05); line(-1.32, stump, 1.32, stump, .04); line(-1.32, Math.min(pop, stump) - 1.2, -1.32, Math.max(pop, stump) + 1.2, .04); line(1.32, Math.min(pop, stump) - 1.2, 1.32, Math.max(pop, stump) + 1.2, .04); });
-  /* far fielders and bowler */
-  FIELD.forEach(f => { if(f.z > 12) figure(f.x, f.z, "#f4f6f8", "#1d2b38", 0); });
-  drawStumps(20.12, A && false);
-  drawBowler();
+function zoneZ(w){ const b = A.ball, v = REL.z / b.T, pt = perfectT(b), k = winK(b); return [REL.z - v * (pt - w * k), REL.z - v * (pt + w * k)]; }
+function drawSide(){
+  const gy = GY(), sc = SC();
+  let g = cx.createLinearGradient(0, 0, 0, gy); g.addColorStop(0, "#4fb3e6"); g.addColorStop(.55, "#cfeefb"); cx.fillStyle = g; cx.fillRect(0, 0, W, gy);
+  /* stands with crowd */
+  const st0 = H * .26, st1 = H * .47;
+  cx.fillStyle = "#24364a"; cx.fillRect(0, st0, W, st1 - st0);
+  if(!crowd || crowd.w !== W || crowd.h !== H){ crowd = {w:W, h:H, dots:[]}; const cols = ["#f7a61b","#ffffff","#1a98cb","#e05a5a","#7fd17f","#f3d36b","#c48df0"]; for(let i = 0; i < W * 1.2; i++) crowd.dots.push([Math.random(), Math.random(), cols[i % cols.length]]); }
+  cx.globalAlpha = .8; crowd.dots.forEach(([u, v, c]) => { cx.fillStyle = c; cx.fillRect(u * W, st0 + 4 + v * (st1 - st0 - 14), 2.2, 2.2); }); cx.globalAlpha = 1;
+  cx.fillStyle = "#0b5394"; cx.fillRect(0, st1 - 9, W, 9);
+  cx.fillStyle = "#fff"; cx.font = `700 ${Math.max(7, H * .016)}px Montserrat, sans-serif`; cx.textAlign = "center"; cx.textBaseline = "middle";
+  for(let x = W * .17; x < W; x += W * .33) cx.fillText(PUBLIC ? "IVY ROAD RALLY" : "HIMACHAL ROAD RALLY", x, st1 - 4.5);
+  /* outfield */
+  for(let y = st1, k = 0; y < H; y += H * .06, k++){ cx.fillStyle = k % 2 ? "#3f9b4a" : "#47a853"; cx.fillRect(0, y, W, H * .06 + 1); }
+  cx.fillStyle = "rgba(255,255,255,.8)"; cx.fillRect(0, st1 + 5, W, 2);
+  /* pitch strip seen from the side */
+  const pl = X(21.5), prt = X(-1.6);
+  cx.fillStyle = "#d9c58f"; cx.beginPath(); cx.moveTo(pl + 10, gy - 7); cx.lineTo(prt - 6, gy - 7); cx.lineTo(prt + 6, gy + 16); cx.lineTo(pl - 10, gy + 16); cx.closePath(); cx.fill();
+  cx.fillStyle = "rgba(255,255,255,.9)"; [1.22, 0, 18.9, 20.12].forEach(z => cx.fillRect(X(z) - 1, gy - 6, 2.4, 21));
+  /* the HIT box */
+  if(A && (A.state === "runup" || A.state === "flight")){
+    const [ok1, ok2] = zoneZ(WIN.ok), [g1, g2] = zoneZ(WIN.good), top = Yh(2.7);
+    const bt = A.state === "flight" ? (now() - A.t0) / 1000 : -1, inGood = bt >= 0 && Math.abs(bt - perfectT(A.ball)) <= WIN.good * winK(A.ball);
+    cx.fillStyle = "rgba(243,211,107,.22)"; rr(X(ok1), top, X(ok2) - X(ok1), gy - top + 6, 10); cx.fill();
+    cx.fillStyle = inGood ? "rgba(80,220,120,.55)" : "rgba(80,220,120,.28)"; rr(X(g1), top, X(g2) - X(g1), gy - top + 6, 10); cx.fill();
+    cx.strokeStyle = inGood ? "#ffffff" : "rgba(255,255,255,.75)"; cx.lineWidth = inGood ? 3 : 2; rr(X(g1), top, X(g2) - X(g1), gy - top + 6, 10); cx.stroke();
+    cx.fillStyle = "#fff"; cx.font = `800 ${Math.max(13, sc * .55)}px Montserrat, sans-serif`; cx.textAlign = "center"; cx.textBaseline = "top";
+    cx.lineWidth = 3; cx.strokeStyle = "rgba(6,22,40,.6)"; cx.strokeText("HIT", (X(g1) + X(g2)) / 2, gy + 20); cx.fillText("HIT", (X(g1) + X(g2)) / 2, gy + 20);
+  }
+  /* bowler's stumps, bowler, keeper */
+  stumpsSide(20.12, false); bowlerSide();
+  figureSide(X(-3.6), gy, "#c0392b", "#7a1f16", .8, true);
   const tStump = A ? (REL.z - .05) / (REL.z / A.ball.T) : 0, clampT = x => A.ball.onStumps ? Math.min(x, tStump) : x;
   const b = A && A.state === "flight" ? ballAt(A.ball, clampT((now() - A.t0) / 1000)) : A && (A.state === "out" || (A.state === "result" && A.result && A.result.kind === "bowled")) ? ballAt(A.ball, tStump) : null;
-  if(b && b.z > .55) drawBall(b);
-  drawBatter();
-  if(b && b.z <= .55) drawBall(b);
-  drawStumps(0, A && (A.state === "out" || (A.state === "result" && A.result && A.result.kind === "bowled")));
+  stumpsSide(0, A && (A.state === "out" || (A.state === "result" && A.result && A.result.kind === "bowled")));
+  batterSide();
+  if(b) ballSide(b);
 }
-function drawStumps(z, broken){
-  const s = pr(0, 0, z)[2];
-  [-.11, 0, .11].forEach((x, i) => { const a = pr(x, 0, z), b = pr(x + (broken ? (i - 1) * .25 : 0), .71, z + (broken ? -.2 : 0)); cx.strokeStyle = "#f4ead2"; cx.lineWidth = Math.max(1.5, .038 * s); cx.lineCap = "round"; cx.beginPath(); cx.moveTo(a[0], a[1]); cx.lineTo(b[0], b[1]); cx.stroke(); });
-  if(!broken){ const a = pr(-.12, .72, z), b = pr(.12, .72, z); cx.strokeStyle = "#c98a3a"; cx.lineWidth = Math.max(1, .025 * s); cx.beginPath(); cx.moveTo(a[0], a[1]); cx.lineTo(b[0], b[1]); cx.stroke(); }
-  else { const t = Math.min(1, (now() - (A.tOut || A.tRes || now())) / 600); [[-1, .9], [1, 1.1]].forEach(([d, h]) => { const p = pr(d * (.15 + t * .9), .72 + h * Math.sin(t * Math.PI) * .9, z - t * 1.5); cx.fillStyle = "#c98a3a"; cx.fillRect(p[0] - .06 * s, p[1] - .015 * s, .12 * s, .03 * s); }); }
+function stumpsSide(z, broken){
+  const gy = GY(), sc = SC(), x = X(z), h = .71 * sc * 1.25;
+  if(!broken){ cx.fillStyle = "#f4ead2"; [-3, 0, 3].forEach(d => cx.fillRect(x + d - 1.2, gy - h, 2.6, h)); cx.fillStyle = "#c98a3a"; cx.fillRect(x - 5, gy - h - 2, 10, 3); return; }
+  const t = Math.min(1, (now() - (A.tOut || A.tRes || now())) / 600);
+  cx.save(); cx.strokeStyle = "#f4ead2"; cx.lineWidth = 2.6; [-1, 0, 1].forEach(d => { cx.beginPath(); cx.moveTo(x + d * 3, gy); cx.lineTo(x + d * 3 + (d + 1.3) * h * .45 * t, gy - h * (1 - .4 * t)); cx.stroke(); });
+  cx.fillStyle = "#c98a3a"; [[1, 1], [1.6, .7]].forEach(([dx, dy]) => cx.fillRect(x + dx * 30 * t, gy - h - dy * 40 * Math.sin(t * Math.PI), 7, 3)); cx.restore();
 }
-function figure(X, Z, shirt, pants, arm){
-  const [x, y, s] = pr(X, 0, Z), h = 1.75 * s; if(x < -20 || x > W + 20) return;
-  cx.fillStyle = "rgba(0,0,0,.18)"; cx.beginPath(); cx.ellipse(x, y, .35 * s, .1 * s, 0, 0, 7); cx.fill();
-  cx.fillStyle = pants; cx.fillRect(x - .17 * s, y - h * .5, .14 * s, h * .5); cx.fillRect(x + .03 * s, y - h * .5, .14 * s, h * .5);
-  cx.fillStyle = shirt; cx.fillRect(x - .22 * s, y - h * .85, .44 * s, h * .4);
-  cx.strokeStyle = shirt; cx.lineWidth = Math.max(1, .1 * s); cx.lineCap = "round";
-  cx.beginPath(); cx.moveTo(x - .2 * s, y - h * .8); cx.lineTo(x - .3 * s, y - h * .55); cx.moveTo(x + .2 * s, y - h * .8);
-  if(arm){ const a = arm; cx.lineTo(x + .2 * s + Math.sin(a) * .7 * s, y - h * .8 - Math.cos(a) * .7 * s); } else cx.lineTo(x + .3 * s, y - h * .55); cx.stroke();
-  cx.fillStyle = "#e0b08a"; cx.beginPath(); cx.arc(x, y - h * .92, .12 * s, 0, 7); cx.fill();
-  cx.fillStyle = pants; cx.beginPath(); cx.arc(x, y - h * .95, .12 * s, Math.PI, 0); cx.fill();
+/* a simple player seen from the side, facing left; s = size multiplier */
+function figureSide(x, gy, shirt, pants, s, crouch){
+  const u = SC() * 1.35 * s, hh = crouch ? .7 : 1;
+  cx.fillStyle = "rgba(0,0,0,.18)"; cx.beginPath(); cx.ellipse(x, gy + 2, .45 * u, .1 * u, 0, 0, 7); cx.fill();
+  cx.fillStyle = pants; cx.fillRect(x - .16 * u, gy - .85 * u * hh, .13 * u, .85 * u * hh); cx.fillRect(x + .03 * u, gy - .85 * u * hh, .13 * u, .85 * u * hh);
+  cx.fillStyle = shirt; rr(x - .2 * u, gy - 1.45 * u * hh, .4 * u, .65 * u, .12 * u); cx.fill();
+  cx.fillStyle = "#e0b08a"; cx.beginPath(); cx.arc(x - .02 * u, gy - 1.6 * u * hh, .15 * u, 0, 7); cx.fill();
+  cx.fillStyle = pants; cx.beginPath(); cx.arc(x - .02 * u, gy - 1.63 * u * hh, .15 * u, Math.PI, 0); cx.fill();
 }
-function drawBowler(){
-  let z = 20.6, arm = 0, x = .55;
-  if(A && A.state === "runup"){ const u = Math.min(1, (now() - A.t0) / 1150); z = 34 - u * 13.4; x = .9 - u * .35; if(u > .7) arm = (u - .7) / .3 * Math.PI * 2; }
-  else if(A && A.state === "wait"){ z = 34; x = .9; }
-  else if(A && A.state === "flight"){ const u = Math.min(1, (now() - A.t0) / 400); z = 20.6 - u * 1.5; arm = Math.PI * 2 + u * 1.2; }
-  else z = 19.2;
-  figure(x, z, "#c0392b", "#7a1f16", arm);
+function bowlerSide(){
+  let z = 20.7, arm = 0;
+  if(A && A.state === "runup"){ const u = Math.min(1, (now() - A.t0) / 1150); z = 27 - u * 6.3; if(u > .6) arm = (u - .6) / .4 * Math.PI * 2; }
+  else if(A && A.state === "wait") z = 27;
+  else if(A && A.state === "flight"){ const u = Math.min(1, (now() - A.t0) / 350); z = 20.7 - u * 1.2; arm = Math.PI * 2 + u * 1.4; }
+  const x = X(z), gy = GY(), u = SC() * 1.35;
+  figureSide(x, gy, "#c0392b", "#7a1f16", 1, false);
+  cx.strokeStyle = "#c0392b"; cx.lineWidth = Math.max(3, .12 * u); cx.lineCap = "round"; cx.beginPath(); cx.moveTo(x, gy - 1.35 * u);
+  cx.lineTo(x - Math.sin(arm) * .75 * u, gy - 1.35 * u - Math.cos(arm) * .75 * u); cx.stroke();
 }
-function drawBall(b){
-  const g = pr(b.x, 0, b.z), p = pr(b.x, b.y, b.z), r = Math.max(2.2, .045 * p[2]);
-  cx.fillStyle = "rgba(0,0,0,.25)"; cx.beginPath(); cx.ellipse(g[0], g[1], r * 1.1, r * .45, 0, 0, 7); cx.fill();
-  const gr = cx.createRadialGradient(p[0] - r * .35, p[1] - r * .35, r * .1, p[0], p[1], r); gr.addColorStop(0, "#ffffff"); gr.addColorStop(1, "#d8dde3");
-  cx.fillStyle = gr; cx.beginPath(); cx.arc(p[0], p[1], r, 0, 7); cx.fill();
-  if(r > 4){ cx.strokeStyle = "#c0392b"; cx.lineWidth = Math.max(1, r * .14); cx.beginPath(); cx.arc(p[0], p[1], r * .62, -.9, .9); cx.stroke(); }
+function ballSide(b){
+  const sc = SC(), x = X(b.z), y = Yh(b.y), r = Math.max(5, sc * .17);
+  cx.fillStyle = "rgba(0,0,0,.28)"; cx.beginPath(); cx.ellipse(x, GY() + 3, r * 1.1, r * .4, 0, 0, 7); cx.fill();
+  const gr = cx.createRadialGradient(x - r * .35, y - r * .35, r * .1, x, y, r); gr.addColorStop(0, "#ffffff"); gr.addColorStop(1, "#d8dde3");
+  cx.fillStyle = gr; cx.beginPath(); cx.arc(x, y, r, 0, 7); cx.fill(); cx.strokeStyle = "#c0392b"; cx.lineWidth = Math.max(1, r * .18); cx.beginPath(); cx.arc(x, y, r * .62, -.9, .9); cx.stroke();
 }
-function drawBatter(){
-  const X = -.42, Z = .45, [x, y, s] = pr(X, 0, Z), h = 1.78 * s;
-  cx.fillStyle = "rgba(0,0,0,.22)"; cx.beginPath(); cx.ellipse(x + .1 * s, y, .55 * s, .12 * s, 0, 0, 7); cx.fill();
-  /* legs with pads */
-  [[-.2, 0], [.06, 0]].forEach(([dx]) => { cx.fillStyle = "#f6f7f8"; rr(x + dx * s, y - h * .34, .16 * s, h * .3, .05 * s); cx.fill(); cx.strokeStyle = "#cfd6dd"; cx.lineWidth = 1; for(let i = 1; i < 4; i++){ cx.beginPath(); cx.moveTo(x + (dx + .04 * i) * s, y - h * .33); cx.lineTo(x + (dx + .04 * i) * s, y - h * .06); cx.stroke(); }
-    cx.fillStyle = "#1d2b38"; rr(x + (dx - .01) * s, y - h * .05, .19 * s, h * .05, .03 * s); cx.fill(); });
-  cx.fillStyle = "#eef1f4"; rr(x - .22 * s, y - h * .56, .48 * s, h * .24, .06 * s); cx.fill();
-  /* shirt with name on the back */
-  const sh = cx.createLinearGradient(0, y - h * .9, 0, y - h * .52); sh.addColorStop(0, "#1478b5"); sh.addColorStop(1, "#0b5394");
-  cx.fillStyle = sh; rr(x - .26 * s, y - h * .9, .56 * s, h * .37, .12 * s); cx.fill();
-  cx.fillStyle = "#f7a61b"; cx.fillRect(x - .26 * s, y - h * .62, .56 * s, h * .02);
-  cx.fillStyle = "#fff"; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.font = `800 ${Math.max(8, .085 * s)}px Montserrat, sans-serif`;
-  cx.fillText(P() ? P().name.toUpperCase().slice(0, 9) : "", x + .02 * s, y - h * .82);
-  cx.font = `800 ${Math.max(10, .16 * s)}px Montserrat, sans-serif`; cx.fillText(String((G ? G.cur : 0) + 7), x + .02 * s, y - h * .72);
-  /* helmet */
-  cx.fillStyle = "#0b3d6e"; cx.beginPath(); cx.arc(x + .02 * s, y - h * .95, .14 * s, Math.PI * .95, Math.PI * 2.05); cx.fill(); cx.fillRect(x - .12 * s, y - h * .95, .28 * s, .07 * s);
-  /* bat: angle 0 points down, negative swings it out to the off side */
-  let a = -.35;
-  if(A && (A.state === "flight") && !A.swing){ const u = Math.min(1, (now() - A.t0) / 1000 / (A.ball.T * .55)); a = -.35 - u * 2.2; }
-  if(A && A.swing){ const u = Math.min(1, (now() - A.swing) / 230), from = -2.55, to = A.shot && A.shot.ang < -40 ? 2.6 : 2.25; a = from + (to - from) * easeOut(u); if(A.state === "result" && now() - A.tRes > 900) a = -.35; }
-  else if(A && A.state === "hit") a = 2.25;
-  const hx = x + .2 * s, hyy = y - h * .58;
-  cx.strokeStyle = "#0b5394"; cx.lineWidth = Math.max(2, .1 * s); cx.lineCap = "round";
-  cx.beginPath(); cx.moveTo(x - .2 * s, y - h * .84); cx.lineTo(hx, hyy); cx.moveTo(x + .26 * s, y - h * .84); cx.lineTo(hx, hyy); cx.stroke();
-  cx.save(); cx.translate(hx, hyy); cx.rotate(a);
-  cx.fillStyle = "#2b2b2b"; rr(-.025 * s, -.05 * s, .05 * s, .28 * s, .02 * s); cx.fill();
-  const bg = cx.createLinearGradient(-.06 * s, 0, .06 * s, 0); bg.addColorStop(0, "#e9cf98"); bg.addColorStop(1, "#c9a465");
-  cx.fillStyle = bg; rr(-.055 * s, .22 * s, .11 * s, .6 * s, .03 * s); cx.fill(); cx.restore();
-  cx.fillStyle = "#f0f0f0"; cx.beginPath(); cx.arc(hx, hyy, .06 * s, 0, 7); cx.fill();
+function batterSide(){
+  const gy = GY(), u = SC() * 1.5, x = X(.55);
+  cx.fillStyle = "rgba(0,0,0,.22)"; cx.beginPath(); cx.ellipse(x, gy + 3, .55 * u, .12 * u, 0, 0, 7); cx.fill();
+  /* pads and legs, front leg forward (left) */
+  [[-.24, 0], [.06, 0]].forEach(([dx]) => { cx.fillStyle = "#f6f7f8"; rr(x + dx * u, gy - .62 * u, .18 * u, .58 * u, .05 * u); cx.fill(); cx.strokeStyle = "#cfd6dd"; cx.lineWidth = 1;
+    for(let i = 1; i < 3; i++){ cx.beginPath(); cx.moveTo(x + (dx + .06 * i) * u, gy - .6 * u); cx.lineTo(x + (dx + .06 * i) * u, gy - .1 * u); cx.stroke(); }
+    cx.fillStyle = "#1d2b38"; rr(x + (dx - .05) * u, gy - .07 * u, .24 * u, .08 * u, .03 * u); cx.fill(); });
+  cx.fillStyle = "#eef1f4"; rr(x - .24 * u, gy - .95 * u, .5 * u, .38 * u, .06 * u); cx.fill();
+  const sh = cx.createLinearGradient(0, gy - 1.55 * u, 0, gy - .9 * u); sh.addColorStop(0, "#1478b5"); sh.addColorStop(1, "#0b5394");
+  cx.fillStyle = sh; rr(x - .22 * u, gy - 1.52 * u, .48 * u, .62 * u, .14 * u); cx.fill();
+  cx.fillStyle = "#f7a61b"; cx.fillRect(x - .22 * u, gy - 1.08 * u, .48 * u, .04 * u);
+  cx.fillStyle = "#e0b08a"; cx.beginPath(); cx.arc(x - .02 * u, gy - 1.7 * u, .16 * u, 0, 7); cx.fill();
+  cx.fillStyle = "#0b3d6e"; cx.beginPath(); cx.arc(x, gy - 1.73 * u, .18 * u, Math.PI * .9, Math.PI * 2.1); cx.fill(); cx.fillRect(x - .2 * u, gy - 1.74 * u, .1 * u, .14 * u);
+  cx.strokeStyle = "#aab7c4"; cx.lineWidth = 1.5; for(let i = 0; i < 3; i++){ cx.beginPath(); cx.moveTo(x - .2 * u, gy - (1.7 - i * .05) * u); cx.lineTo(x - .14 * u, gy - (1.7 - i * .05) * u); cx.stroke(); }
+  cx.fillStyle = "#fff"; cx.font = `800 ${Math.max(8, .14 * u)}px Montserrat, sans-serif`; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText(P() ? P().name.toUpperCase().slice(0, 7) : "", x + .02 * u, gy - 1.3 * u);
+  /* bat: 0 points down, negative lifts it behind (right), positive swings it through (left) */
+  let a = .25;
+  if(A && A.state === "flight" && !A.swing){ const k = Math.min(1, (now() - A.t0) / 1000 / (perfectT(A.ball) * .6)); a = .25 - k * 2.6; }
+  if(A && A.swing){ const k = Math.min(1, (now() - A.swing) / 180); a = -2.35 + 4.9 * easeOut(k); if(A.state === "result" && now() - A.tRes > 900) a = .25; }
+  const hx = x - .12 * u, hy = gy - 1.05 * u;
+  cx.strokeStyle = "#0b5394"; cx.lineWidth = Math.max(3, .11 * u); cx.lineCap = "round"; cx.beginPath(); cx.moveTo(x, gy - 1.42 * u); cx.lineTo(hx, hy); cx.stroke();
+  cx.save(); cx.translate(hx, hy); cx.rotate(a);
+  cx.fillStyle = "#2b2b2b"; rr(-.03 * u, -.04 * u, .06 * u, .3 * u, .02 * u); cx.fill();
+  const bg = cx.createLinearGradient(-.07 * u, 0, .07 * u, 0); bg.addColorStop(0, "#e9cf98"); bg.addColorStop(1, "#c9a465");
+  cx.fillStyle = bg; rr(-.065 * u, .24 * u, .13 * u, .62 * u, .04 * u); cx.fill(); cx.restore();
+  cx.fillStyle = "#f0f0f0"; cx.beginPath(); cx.arc(hx, hy, .07 * u, 0, 7); cx.fill();
 }
 const easeOut = u => 1 - Math.pow(1 - u, 3);
 function rr(x, y, w, h, r){ cx.beginPath(); cx.moveTo(x + r, y); cx.arcTo(x + w, y, x + w, y + h, r); cx.arcTo(x + w, y + h, x, y + h, r); cx.arcTo(x, y + h, x, y, r); cx.arcTo(x, y, x + w, y, r); cx.closePath(); }
@@ -577,10 +582,8 @@ function drawOverlay(){
     cx.fillStyle = "rgba(11,40,70,.72)"; rr(12, 12, 132, 40, 12); cx.fill();
     cx.fillStyle = "#fff"; cx.textAlign = "left"; cx.textBaseline = "alphabetic"; cx.font = "800 17px Montserrat, sans-serif";
     cx.fillText(A.state === "wait" ? "Get ready" : A.ball.speed + " km/h", 24, 33); cx.font = "500 11px Poppins, sans-serif"; cx.fillStyle = "#cfe6f5";
-    cx.fillText(A.state === "wait" ? "Bowler at the top" : (A.ball.spin ? "Spin" : "Pace") + " · " + A.ball.length, 24, 46);
+    cx.fillText(A.state === "wait" ? "Bowler coming in" : (A.ball.spin ? "Spin" : "Pace") + " · " + A.ball.length, 24, 46);
   }
-  if(A.state === "wait" || A.state === "runup" || A.state === "flight") miniMap();
-  if(A.state !== "wait" && !(A.state === "result" && A.result && A.result.wide)) drawMeter();
   if(A.state === "hit" && A.shot){ banner(A.shot.timing + " · aimed " + aimName(A.aim), 0, .17, Math.min(18, W * .045), A.shot.q === "perfect" ? "#f7a61b" : "#ffffff"); }
   /* ripple where the finger landed */
   if(A.tap && t - A.tap.t < 500){ const u = (t - A.tap.t) / 500; cx.strokeStyle = `rgba(255,255,255,${1 - u})`; cx.lineWidth = 4; cx.beginPath(); cx.arc(A.tap.x, A.tap.y, 18 + u * 40, 0, 7); cx.stroke(); }
@@ -594,32 +597,6 @@ function drawOverlay(){
     banner(sub, H * .53, 0, Math.max(13, H * .03), "#e8f3fb", u);
   }
 }
-/* Timing meter: the marker moves with the ball; tap when it is in the green */
-function drawMeter(){
-  const b = A.ball, k = winK(b), pt = perfectT(b), t0 = Math.max(0, pt - .6), t1 = pt + WIN.edge * k * 1.6;
-  const x0 = 18, x1 = W - 18, y = H - 86, h = 16, X = t => x0 + (x1 - x0) * Math.max(0, Math.min(1, (t - t0) / (t1 - t0)));
-  cx.save(); cx.fillStyle = "rgba(6,22,40,.6)"; rr(x0 - 6, y - 22, x1 - x0 + 12, h + 30, 12); cx.fill();
-  cx.fillStyle = "rgba(255,255,255,.15)"; rr(x0, y, x1 - x0, h, 8); cx.fill();
-  [[WIN.edge, "rgba(255,107,87,.55)"], [WIN.ok, "#f3d36b"], [WIN.good, "#6fd38a"], [WIN.perfect, "#f7a61b"]].forEach(([w, c]) => {
-    const a = X(pt - w * k), z = X(pt + w * k); cx.fillStyle = c; cx.fillRect(a, y, Math.max(2, z - a), h); });
-  cx.fillStyle = "#fff"; cx.font = "800 10px Montserrat, sans-serif"; cx.textAlign = "center"; cx.textBaseline = "alphabetic"; cx.fillText("HIT", X(pt), y - 6);
-  cx.textAlign = "left"; cx.fillStyle = "rgba(255,255,255,.75)"; cx.fillText("EARLY", x0, y - 6); cx.textAlign = "right"; cx.fillText("LATE", x1, y - 6);
-  const tm = A.state !== "runup" && A.swing && A.t0 && A.swing >= A.t0 ? (A.swing - A.t0) / 1000 : A.state === "flight" ? (now() - A.t0) / 1000 : null;
-  if(tm !== null){ const mx = X(tm); cx.fillStyle = "#fff"; cx.shadowColor = "rgba(0,0,0,.5)"; cx.shadowBlur = 4; rr(mx - 3, y - 5, 6, h + 10, 3); cx.fill(); }
-  cx.restore();
-}
-/* Small field map: fielders, the rope and the gaps */
-function miniMap(){
-  const r = Math.max(40, Math.min(58, Math.min(W, H) * .12)), mx = W - r - 14, my = 64 + r, k = r / (ROPE + 6);
-  cx.save(); cx.fillStyle = "rgba(11,40,70,.72)"; cx.beginPath(); cx.arc(mx, my, r + 6, 0, 7); cx.fill();
-  cx.fillStyle = "#3f9b4a"; cx.beginPath(); cx.arc(mx, my, r, 0, 7); cx.fill();
-  cx.strokeStyle = "rgba(255,255,255,.8)"; cx.lineWidth = 1; cx.beginPath(); cx.arc(mx, my, ROPE * k, 0, 7); cx.stroke();
-  const S = (x, z) => [mx + x * k, my + (CENTRE - z) * k];
-  const a = S(-1.5, 0), b = S(1.5, 20); cx.fillStyle = "#e3cf98"; cx.fillRect(a[0], b[1], Math.max(2, b[0] - a[0]), a[1] - b[1]);
-  FIELD.forEach((f, i) => { const p = S(f.x, f.z); cx.fillStyle = i < 2 ? "rgba(255,255,255,.7)" : "#ff6b57"; cx.beginPath(); cx.arc(p[0], p[1], i < 2 ? 1.6 : 2.6, 0, 7); cx.fill(); });
-  const bt = S(0, 0); cx.fillStyle = "#1a98cb"; cx.beginPath(); cx.arc(bt[0], bt[1], 2.6, 0, 7); cx.fill();
-  cx.fillStyle = "#fff"; cx.font = "600 9px Poppins, sans-serif"; cx.textAlign = "center"; cx.fillText("FIELD", mx, my + r + 16); cx.restore();
-}
 function banner(text, y, yf, size, col, alpha){
   cx.save(); cx.globalAlpha = alpha === undefined ? 1 : alpha; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.font = `800 ${size}px Montserrat, sans-serif`;
   const yy = y || H * yf; cx.lineWidth = Math.max(3, size * .12); cx.strokeStyle = "rgba(6,22,40,.65)"; cx.strokeText(text, W / 2, yy); cx.fillStyle = col; cx.fillText(text, W / 2, yy); cx.restore();
@@ -627,15 +604,14 @@ function banner(text, y, yf, size, col, alpha){
 
 /* ---------- Screens ---------- */
 const RULES = `<div class="card"><h3>How to play</h3>
-  <p class="sub" style="color:var(--ink)">You bat, the computer bowls. Two simple steps:</p>
+  <p class="sub" style="color:var(--ink)">You bat, the computer bowls from the left.</p>
   <ul class="sub" style="margin:0;padding-left:1.1em;color:var(--ink)">
-    <li><b>Pick a direction</b> with the three buttons at the bottom of the pitch: Leg side, Straight or Off side. Your choice stays picked until you change it.</li>
-    <li><b>Tap anywhere on the pitch</b> when the white marker on the timing bar is in the <b>green HIT zone</b>. The gold centre is perfect: mostly 4s and 6s.</li>
-    <li>On a keyboard: arrow keys pick the direction, space bar swings.</li>
-    <li>The small <b>field map</b> shows the fielders (red dots). Hit into a <b>gap</b> for more boundaries; hit straight at a fielder and you may be stopped or caught. The field changes every over.</li>
-    <li>After each tap the marker stops where you hit, so you can see if you were early or late.</li>
-    <li>Miss a ball that is heading for the stumps and you are <b>bowled</b>. Edges and mistimed shots can be <b>caught</b>.</li>
-    <li>Each player bats for the same number of overs. Highest score wins; if the scores are level, fewer wickets lost wins.</li>
+    <li><b>Tap anywhere on the pitch when the ball is inside the green HIT box.</b> Right in the middle of the box is perfect: mostly 4s and 6s. The box glows when the ball is in it.</li>
+    <li>Pick where to hit with <b>Left</b>, <b>Straight</b> or <b>Right</b> at the bottom. It stays picked until you change it. (Left is the leg side, right is the off side.)</li>
+    <li>Miss a ball that is heading for the stumps and you are <b>bowled</b>. Bad timing can give an edge or a catch.</li>
+    <li>After each shot the ground view shows where the ball went and which fielder chased it. Hitting into a gap gives more boundaries.</li>
+    <li>On a keyboard: arrow keys pick the direction, space bar hits.</li>
+    <li>Each player bats for the same number of overs. Highest score wins; if level, fewer wickets lost wins.</li>
   </ul></div>`;
 function setupScreen(){
   if(!setupPlayers){ setupPlayers = rallyPlayers().map((p, i) => ({...p, on:i < 4, level:(best[p.name] && best[p.name].level) || (/kippi/i.test(p.name) ? "easy" : "medium")})); }
@@ -665,7 +641,7 @@ function panelHTML(){
       <div class="big">${n.runs}<span>/${n.wk}</span></div></div></div>
     ${need !== null ? `<div class="card target"><b>${need > 0 ? `Needs ${need} from ${left} ${left === 1 ? "ball" : "balls"}` : `In the lead!`}</b><span class="sub">${esc(G.players[top].name)} scored ${G.inn[top].runs}</span></div>` : ""}
     <div class="card"><h3>This over</h3><div class="balls">${thisOver.map(x => `<span class="bl ${x === "W" ? "w" : x === "4" || x === "6" ? "b" : x === "Wd" ? "x" : ""}">${x === "0" ? "•" : x}</span>`).join("")}${Array.from({length:Math.max(0, 6 - legal)}, () => `<span class="bl e"></span>`).join("")}</div>
-      <p class="sub" id="last">${A && A.result ? esc(A.result.line) + (A.result.where ? `<br><b>${esc(A.result.where)}</b>` : "") : "1. Pick a direction with the buttons (it stays picked). 2. Tap the pitch when the white marker is in the green HIT zone. Aim for gaps on the field map."}</p></div>
+      <p class="sub" id="last">${A && A.result ? esc(A.result.line) + (A.result.where ? `<br><b>${esc(A.result.where)}</b>` : "") : "Tap the screen when the ball is inside the green HIT box. Use Left, Straight or Right to choose where the ball goes."}</p></div>
     <div class="card"><h3>Scorecard</h3><div class="srow"><span>Fours</span><b>${n.fours}</b></div><div class="srow"><span>Sixes</span><b>${n.sixes}</b></div><div class="srow"><span>Strike rate</span><b>${n.balls ? Math.round(n.runs * 100 / n.balls) : 0}</b></div>
       ${G.players.length > 1 ? `<div class="srow"><span>Batting order</span><b>${G.players.map((q, i) => i === G.cur ? `<u>${esc(q.name)}</u>` : G.inn[i].done ? esc(q.name) + " " + G.inn[i].runs : esc(q.name)).join(" · ")}</b></div>` : ""}</div>`;
 }
@@ -688,7 +664,7 @@ function render(){
   else if(G.phase === "cover"){ app.innerHTML = coverScreen(); stopLoop(); }
   else if(G.phase === "innEnd"){ app.innerHTML = innEndScreen(); stopLoop(); }
   else if(G.phase === "over"){ app.innerHTML = overScreen(); stopLoop(); }
-  else { if(!$("#pitch")) app.innerHTML = `<main class="play"><div class="stage" id="stage"><canvas id="pitch" aria-label="Cricket pitch. Tap to swing the bat."></canvas><div class="aimbar" role="group" aria-label="Shot direction">${[["-1","◀ Leg side"],["0","▲ Straight"],["1","Off side ▶"]].map(([v, l]) => `<button data-aim="${v}" class="${String(aimSel) === v ? "on" : ""}">${l}</button>`).join("")}</div></div><div class="panel" id="panel"></div></main>${rulesOpen ? `<div class="rulesbox">${RULES}<button class="btn" data-a="rules">Close the rules</button></div>` : ""}`;
+  else { if(!$("#pitch")) app.innerHTML = `<main class="play"><div class="stage" id="stage"><canvas id="pitch" aria-label="Cricket pitch. Tap to swing the bat."></canvas><div class="aimbar" role="group" aria-label="Shot direction">${[["-1","◀ Left"],["0","▲ Straight"],["1","Right ▶"]].map(([v, l]) => `<button data-aim="${v}" class="${String(aimSel) === v ? "on" : ""}">${l}</button>`).join("")}</div></div><div class="panel" id="panel"></div></main>${rulesOpen ? `<div class="rulesbox">${RULES}<button class="btn" data-a="rules">Close the rules</button></div>` : ""}`;
     else { const rb = $(".rulesbox"); if(rulesOpen && !rb) app.insertAdjacentHTML("beforeend", `<div class="rulesbox">${RULES}<button class="btn" data-a="rules">Close the rules</button></div>`); if(!rulesOpen && rb) rb.remove(); }
     renderPanel(); startLoop(); }
   save();
