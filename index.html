@@ -943,7 +943,7 @@ const CAN_SHARE = !IN_CLAUDE && !!(navigator.canShare && window.File && (() => {
 let pendingRestore = null, codeOpen = false;
 function makeBackup(){
   let katan = null; try{ katan = JSON.parse(localStorage.getItem(KATAN_KEY)); if(katan && katan.G) katan.G.undo = []; }catch(e){}
-  const extra = {}; ["family-ludo-v1","family-deal-v1"].forEach(k => { try{ const v = localStorage.getItem(k); if(v) extra[k] = JSON.parse(v); }catch(e){} });
+  const extra = {}; ["family-ludo-v1","family-deal-v1","family-cricket-v1"].forEach(k => { try{ const v = localStorage.getItem(k); if(v) extra[k] = JSON.parse(v); }catch(e){} });
   return {extra, app:"himachal-road-rally-backup", v:1, at:new Date().toISOString(), rally:JSON.parse(JSON.stringify(S)), katan};
 }
 const backupName = () => "road-rally-backup-" + new Date().toISOString().slice(0, 10) + ".json";
@@ -959,7 +959,7 @@ function applyBackup(b){
   const d = b.data;
   S = revive(d.rally); S.screen = "settings";
   try{ if(d.katan) localStorage.setItem(KATAN_KEY, JSON.stringify(d.katan)); }catch(e){}
-  try{ Object.entries(d.extra || {}).forEach(([k, v]) => { if(/ludo|deal/.test(k)) localStorage.setItem(k, JSON.stringify(v)); }); }catch(e){}
+  try{ Object.entries(d.extra || {}).forEach(([k, v]) => { if(/ludo|deal|cricket/.test(k)) localStorage.setItem(k, JSON.stringify(v)); }); }catch(e){}
   save();
 }
 const backupCode = () => btoa(unescape(encodeURIComponent(JSON.stringify(makeBackup()))));
@@ -983,7 +983,7 @@ const back = (title) => `<div class="head"><button class="back" data-a="go" data
 const screens = {
   home(){
     return `
-      <h2 class="ghead">All games <span class="sub">(10)</span></h2>
+      <h2 class="ghead">All games <span class="sub">(11)</span></h2>
       <section class="gsec"><h3>In the car <span class="sub">the front passenger holds the phone</span></h3><div class="ggrid">
         <button class="gt" data-a="go" data-s="spot"><span class="sign diamond"><span>!</span></span><b>Spot It</b><small>Find things out of the window</small></button>
         <button class="gt" data-a="go" data-s="quiz"><span class="sign">?</span><b>Quick Quiz</b><small>Questions at each player's level</small></button>
@@ -995,6 +995,7 @@ const screens = {
       <section class="gsec"><h3>Pass the phone <span class="sub">one player at a time</span></h3><div class="ggrid">
         <button class="gt" data-a="go" data-s="race"><span class="sign diamond"><span>F1</span></span><b>Brick Racer</b><small>Retro car race, beat the best score</small></button>
         <a class="gt" href="ludo.html"><span class="sign circle">L</span><b>Ludo</b><small>2 to 4 players, or play the computer</small></a>
+        <a class="gt" href="cricket.html"><span class="sign">6</span><b>Cricket</b><small>Batting only, time your shots</small></a>
       </div></section>
       <section class="gsec"><h3>At the hotel <span class="sub">best on a tablet</span></h3><div class="ggrid">
         <a class="gt" href="deal.html"><span class="sign diamond"><span>₹</span></span><b>Ivy Deal</b><small>Property card game for 2 to 5</small></a>
@@ -1215,7 +1216,7 @@ const screens = {
         </ul>
       </div>
       <div class="card" id="backup"><h3>Backup and restore</h3>
-        <p class="sub" style="margin-top:-6px">One file holds the Road Rally scores, all trip days and any AgrawalKatan, Ludo or Ivy Deal game in progress. Save it to Files, or send it to yourself on WhatsApp or email.</p>
+        <p class="sub" style="margin-top:-6px">One file holds the Road Rally scores, all trip days and any AgrawalKatan, Ludo, Ivy Deal or Cricket game in progress. Save it to Files, or send it to yourself on WhatsApp or email.</p>
         ${pendingRestore ? `<div class="note"><strong>Restore this backup?</strong><br>Saved ${esc(pendingRestore.when)}. ${esc(pendingRestore.summary)}<br>This replaces the scores on this device.</div>
           <div class="row"><button class="btn go" data-a="bk-yes">Yes, restore</button><button class="btn" data-a="bk-no">Cancel</button></div>` : `
         <div class="row">${CAN_DOWNLOAD ? `<button class="btn go" data-a="bk-save">Save backup file</button>` : ""}${CAN_SHARE ? `<button class="btn" data-a="bk-share">Share backup</button>` : ""}</div>
